@@ -1,5 +1,7 @@
-import { TransactionTable } from "@/features/transactions/components/transaction-table";
-import { mapTransactionRow } from "@/features/transactions/types";
+import { format } from "date-fns";
+
+import { TransactionTable } from "@/hooks/features/transactions/components/transaction-table";
+import { mapTransactionRow } from "@/hooks/features/transactions/types";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
   getTransactionFormOptions,
@@ -7,9 +9,33 @@ import {
   getTransactionTotalsSummary,
 } from "@/services/transaction.service";
 import { PageHeader } from "@/components/layout/page-header";
+import { dateRangePresets } from "@/utils/date";
 
-export default async function TransactionsPage() {
+type TransactionsPageProps = {
+  searchParams: Promise<{
+    type?: string;
+    account?: string;
+    date?: string;
+  }>;
+};
+
+export default async function TransactionsPage({
+  searchParams,
+}: TransactionsPageProps) {
   const user = await requireModuleAccess("transactions");
+  const params = await searchParams;
+  const entryType =
+    params.type === "income" || params.type === "expense" ? params.type : "all";
+  const accountId = params.account?.trim() || "all";
+
+  let initialDateFrom = "";
+  let initialDateTo = "";
+  if (params.date === "today") {
+    const range = dateRangePresets("today");
+    initialDateFrom = format(range.from, "yyyy-MM-dd");
+    initialDateTo = format(range.to, "yyyy-MM-dd");
+  }
+
   const [rows, totals, options] = await Promise.all([
     getTransactionsList(),
     getTransactionTotalsSummary(),
@@ -45,6 +71,10 @@ export default async function TransactionsPage() {
         }))}
         canEditDelete={user.role === "Admin"}
         canExport={user.role === "Admin" || user.role === "Manager"}
+        initialEntryType={entryType}
+        initialAccountId={accountId}
+        initialDateFrom={initialDateFrom}
+        initialDateTo={initialDateTo}
       />
     </>
   );

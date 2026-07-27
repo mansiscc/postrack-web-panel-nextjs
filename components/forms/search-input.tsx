@@ -40,16 +40,16 @@ export function SearchInput({
   }, [internal, debounceMs]);
 
   return (
-    <div className={cn("relative w-full max-w-sm", className)}>
+    <div className={cn("relative w-full max-w-70", className)}>
       <Search
-        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
         aria-hidden
       />
       <Input
         value={internal}
         onChange={(event) => setInternal(event.target.value)}
         placeholder={placeholder}
-        className="h-10 pr-9 pl-9"
+        className="h-9.5 pr-8 pl-8 text-[13px]"
         aria-label={placeholder}
       />
       {internal ? (
@@ -57,7 +57,7 @@ export function SearchInput({
           type="button"
           variant="ghost"
           size="icon-xs"
-          className="absolute top-1/2 right-2 -translate-y-1/2"
+          className="absolute top-1/2 right-1.5 -translate-y-1/2"
           onClick={() => setInternal("")}
           aria-label="Clear search"
         >

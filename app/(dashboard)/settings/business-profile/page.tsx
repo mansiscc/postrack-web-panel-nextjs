@@ -1,5 +1,5 @@
-import { BusinessProfileForm } from "@/features/business-profile/components/business-profile-form";
-import type { BusinessProfileInput } from "@/features/business-profile/schema";
+import { BusinessProfileForm } from "@/hooks/features/business-profile/components/business-profile-form";
+import type { BusinessProfileInput } from "@/hooks/features/business-profile/schema";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getBusinessProfile } from "@/services/business-profile.service";
 

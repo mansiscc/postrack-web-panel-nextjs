@@ -1,5 +1,5 @@
-import { SupplierTable } from "@/features/suppliers/components/supplier-table";
-import { mapSupplierRow } from "@/features/suppliers/types";
+import { SupplierTable } from "@/hooks/features/suppliers/components/supplier-table";
+import { mapSupplierRow } from "@/hooks/features/suppliers/types";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getSuppliersList } from "@/services/supplier.service";

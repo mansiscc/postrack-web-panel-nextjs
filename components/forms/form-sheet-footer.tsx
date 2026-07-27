@@ -3,24 +3,24 @@
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { SheetFooter } from "@/components/ui/sheet";
+import { ModalCardFooter } from "@/components/ui/modal-card";
 
-type FormSheetFooterProps = {
+type FormModalCardFooterProps = {
   onCancel: () => void;
   isSubmitting: boolean;
   submitLabel?: string;
   submittingLabel?: string;
 };
 
-export function FormSheetFooter({
+export function FormModalCardFooter({
   onCancel,
   isSubmitting,
   submitLabel = "Save",
   submittingLabel = "Saving…",
-}: FormSheetFooterProps) {
+}: FormModalCardFooterProps) {
   return (
-    <SheetFooter className="border-t px-4 py-4">
-      <Button type="button" variant="ghost" onClick={onCancel}>
+    <ModalCardFooter>
+      <Button type="button" variant="outline" onClick={onCancel}>
         Cancel
       </Button>
       <Button type="submit" disabled={isSubmitting}>
@@ -33,6 +33,9 @@ export function FormSheetFooter({
           submitLabel
         )}
       </Button>
-    </SheetFooter>
+    </ModalCardFooter>
   );
 }
+
+/** @deprecated Use FormModalCardFooter — kept as alias during migration. */
+export const FormSheetFooter = FormModalCardFooter;

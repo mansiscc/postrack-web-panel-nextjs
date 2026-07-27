@@ -149,6 +149,21 @@
   html {
     @apply font-sans antialiased;
   }
+
+  /* Admin density: tabular numbers for currency / qty columns */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* Shared motion — keep short; respect reduced-motion media query below */
+  .transition-ui {
+    transition-property: color, background-color, border-color, box-shadow,
+      opacity, transform;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

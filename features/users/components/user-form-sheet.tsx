@@ -29,12 +29,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  ModalCard,
+  ModalCardBody,
+  ModalCardContent,
+  ModalCardFooter,
+  ModalCardHeader,
+  ModalCardTitle,
+} from "@/components/ui/modal-card";
 
 type UserFormSheetProps = {
   open: boolean;
@@ -55,7 +56,7 @@ function StaffPermissions({
   onStockOutChange: (value: boolean) => void;
 }) {
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
       <p className="text-sm font-medium">Staff permissions</p>
       <div className="flex items-center gap-2">
         <Checkbox
@@ -111,8 +112,11 @@ function CreateUserForm({
   });
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-2">
+    <form
+      onSubmit={onSubmit}
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
+      <ModalCardBody className="space-y-4">
         <FormField label="Full name" required error={form.formState.errors.fullName?.message}>
           <Input {...form.register("fullName")} />
         </FormField>
@@ -166,8 +170,8 @@ function CreateUserForm({
             onStockOutChange={(value) => form.setValue("permissionStockOut", value)}
           />
         ) : null}
-      </div>
-      <SheetFooter className="border-t px-4 py-4">
+      </ModalCardBody>
+      <ModalCardFooter>
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
@@ -181,7 +185,7 @@ function CreateUserForm({
             "Save"
           )}
         </Button>
-      </SheetFooter>
+      </ModalCardFooter>
     </form>
   );
 }
@@ -220,8 +224,11 @@ function EditUserForm({
   });
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-2">
+    <form
+      onSubmit={onSubmit}
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
+      <ModalCardBody className="space-y-4">
         <FormField label="Full name" required error={form.formState.errors.fullName?.message}>
           <Input {...form.register("fullName")} />
         </FormField>
@@ -272,15 +279,15 @@ function EditUserForm({
             onStockOutChange={(value) => form.setValue("permissionStockOut", value)}
           />
         ) : null}
-      </div>
-      <SheetFooter className="border-t px-4 py-4">
+      </ModalCardBody>
+      <ModalCardFooter>
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Saving…" : "Save"}
         </Button>
-      </SheetFooter>
+      </ModalCardFooter>
     </form>
   );
 }
@@ -294,11 +301,11 @@ export function UserFormSheet({
   const isEdit = Boolean(user);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-120">
-        <SheetHeader>
-          <SheetTitle>{isEdit ? "Edit user" : "Add user"}</SheetTitle>
-        </SheetHeader>
+    <ModalCard open={open} onOpenChange={onOpenChange}>
+      <ModalCardContent size="lg">
+        <ModalCardHeader>
+          <ModalCardTitle>{isEdit ? "Edit user" : "Add user"}</ModalCardTitle>
+        </ModalCardHeader>
         {isEdit && user ? (
           <EditUserForm
             key={user.id}
@@ -318,7 +325,7 @@ export function UserFormSheet({
             }}
           />
         )}
-      </SheetContent>
-    </Sheet>
+      </ModalCardContent>
+    </ModalCard>
   );
 }

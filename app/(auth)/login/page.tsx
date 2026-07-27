@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { LoginForm } from "@/features/auth/components/login-form";
+import { LoginForm } from "@/hooks/features/auth/components/login-form";
 import {
   Card,
   CardContent,
@@ -15,18 +15,39 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <Card className="w-full max-w-md border shadow-sm">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-semibold tracking-tight">
-          Sign in to POSTrack
-        </CardTitle>
-        <CardDescription>
-          Use your store admin credentials to access the panel.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <LoginForm />
-      </CardContent>
-    </Card>
+    <div className="flex w-full max-w-md flex-col gap-4">
+      <Card className="w-full">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-semibold tracking-tight">
+            Sign in to POSTrack
+          </CardTitle>
+          <CardDescription>
+            Use your store admin credentials to access the panel.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LoginForm />
+        </CardContent>
+      </Card>
+      <p className="text-center text-xs text-muted-foreground">
+        <a
+          href="https://postrack.in/privacy"
+          target="_blank"
+          rel="noreferrer"
+          className="underline-offset-2 hover:underline"
+        >
+          Privacy
+        </a>
+        {" · "}
+        <a
+          href="https://postrack.in/terms"
+          target="_blank"
+          rel="noreferrer"
+          className="underline-offset-2 hover:underline"
+        >
+          Terms
+        </a>
+      </p>
+    </div>
   );
 }

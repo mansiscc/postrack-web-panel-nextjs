@@ -49,7 +49,7 @@ export function AvatarUpload({
 
   return (
     <div className={cn("flex items-center gap-4", className)}>
-      <div className="relative flex size-20 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+      <div className="relative flex size-20 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
         {value ? (
           <Image
             src={value}

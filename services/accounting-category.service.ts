@@ -12,6 +12,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/types/auth";
 import { AppError } from "@/utils/errors";
+import { isSystemAccountingCategory } from "@/utils/system-accounting-categories";
 
 type AccountingCategoryInput = {
   name: string;
@@ -67,6 +68,24 @@ export async function updateAccountingCategoryRecord(
     throw new AppError("Account category not found", "NOT_FOUND", 404);
   }
 
+  if (isSystemAccountingCategory(existing.name, existing.type)) {
+    if (
+      input.name.trim().toLowerCase() !== existing.name.trim().toLowerCase() ||
+      input.type !== existing.type
+    ) {
+      throw new AppError(
+        "System categories (Sales, Purchase, Sales Return) cannot be renamed or retyped.",
+        "VALIDATION_ERROR",
+      );
+    }
+    if (!input.isActive) {
+      throw new AppError(
+        "System categories cannot be deactivated.",
+        "VALIDATION_ERROR",
+      );
+    }
+  }
+
   await updateAccountingCategory(supabase, id, { ...input, userId: user.id });
 
   const headerStore = await headers();
@@ -92,6 +111,16 @@ export async function toggleAccountingCategoryActive(
   const existing = await getAccountingCategoryById(supabase, id);
   if (!existing) {
     throw new AppError("Account category not found", "NOT_FOUND", 404);
+  }
+
+  if (
+    !isActive &&
+    isSystemAccountingCategory(existing.name, existing.type)
+  ) {
+    throw new AppError(
+      "System categories cannot be deactivated.",
+      "VALIDATION_ERROR",
+    );
   }
 
   await updateAccountingCategory(supabase, id, {
@@ -121,6 +150,13 @@ export async function removeAccountingCategory(user: SessionUser, id: string) {
   const existing = await getAccountingCategoryById(supabase, id);
   if (!existing) {
     throw new AppError("Account category not found", "NOT_FOUND", 404);
+  }
+
+  if (isSystemAccountingCategory(existing.name, existing.type)) {
+    throw new AppError(
+      "System categories (Sales, Purchase, Sales Return) cannot be deleted.",
+      "VALIDATION_ERROR",
+    );
   }
 
   const entryCount = await countCategoryEntries(supabase, id);

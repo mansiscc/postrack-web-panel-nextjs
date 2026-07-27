@@ -1,4 +1,4 @@
-import { PurchaseForm } from "@/features/purchases/components/purchase-form";
+import { PurchaseForm } from "@/hooks/features/purchases/components/purchase-form";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getPurchaseFormOptions } from "@/services/stock-in.service";
 

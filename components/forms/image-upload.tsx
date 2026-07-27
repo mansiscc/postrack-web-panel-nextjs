@@ -56,7 +56,7 @@ export function ImageUpload({
         disabled={disabled || isUploading}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          "relative flex h-30 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/30 transition-colors",
+          "relative flex h-30 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30 transition-colors",
           !disabled && !isUploading && "hover:bg-muted/50",
         )}
       >

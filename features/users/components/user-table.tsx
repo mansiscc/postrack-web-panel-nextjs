@@ -1,15 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  KeyRound,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Trash2,
-  UserCog,
-} from "lucide-react";
+import { Plus, UserCog } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
 import { useTableRefresh } from "@/hooks/use-table-refresh";
@@ -24,6 +16,7 @@ import { UserFormSheet } from "@/features/users/components/user-form-sheet";
 import type { UserListItem } from "@/features/users/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { StatusBadge } from "@/components/forms/status-badge";
@@ -33,12 +26,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -159,51 +146,33 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
       },
       {
         id: "actions",
+        header: "Actions",
         cell: ({ row }) => {
           const user = row.original;
           const isSelf = user.id === currentUserId;
 
           return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="icon-sm">
-                  <MoreHorizontal />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {!user.isDeleted ? (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setEditing(user);
-                        setSheetOpen(true);
-                      }}
-                    >
-                      <Pencil />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setPasswordTarget(user)}>
-                      <KeyRound />
-                      Change password
-                    </DropdownMenuItem>
-                    {!isSelf ? (
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => setDeleteTarget(user)}
-                      >
-                        <Trash2 />
-                        Delete
-                      </DropdownMenuItem>
-                    ) : null}
-                  </>
-                ) : (
-                  <DropdownMenuItem onClick={() => handleRestore(user)}>
-                    <RotateCcw />
-                    Restore
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <RowActions
+              onEdit={
+                !user.isDeleted
+                  ? () => {
+                      setEditing(user);
+                      setSheetOpen(true);
+                    }
+                  : undefined
+              }
+              onPassword={
+                !user.isDeleted ? () => setPasswordTarget(user) : undefined
+              }
+              onRestore={
+                user.isDeleted ? () => handleRestore(user) : undefined
+              }
+              onDelete={
+                !user.isDeleted && !isSelf
+                  ? () => setDeleteTarget(user)
+                  : undefined
+              }
+            />
           );
         },
       },
@@ -278,7 +247,16 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
           }
         />
       ) : (
-        <DataTable columns={columns} data={filtered} />
+        <DataTable
+          columns={columns}
+          data={filtered}
+          onRowClick={(row) => {
+            if (!row.isDeleted) {
+              setEditing(row);
+              setSheetOpen(true);
+            }
+          }}
+        />
       )}
 
       <UserFormSheet

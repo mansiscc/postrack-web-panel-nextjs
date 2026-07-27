@@ -1,7 +1,7 @@
 import type { ModuleKey, SessionUser } from "@/types/auth";
 import { canAccessModule } from "@/utils/permissions";
 
-const PUBLIC_PATHS = new Set(["/login", "/inactive"]);
+const PUBLIC_PATHS = new Set(["/login", "/inactive", "/contact"]);
 
 const PATH_MODULE_MAP: Array<{ prefix: string; module: ModuleKey }> = [
   { prefix: "/settings/business-profile", module: "business-profile" },

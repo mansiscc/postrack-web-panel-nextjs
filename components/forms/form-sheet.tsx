@@ -3,45 +3,51 @@
 import type { ReactNode } from "react";
 
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  ModalCard,
+  ModalCardBody,
+  ModalCardContent,
+  ModalCardHeader,
+  ModalCardTitle,
+  type ModalCardSize,
+} from "@/components/ui/modal-card";
 
-type FormSheetProps = {
+type FormModalCardProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   onSubmit: () => void;
   children: ReactNode;
   footer: ReactNode;
+  size?: ModalCardSize;
 };
 
-export function FormSheet({
+/** Centered modal card for create/edit forms (viewport-height aware). */
+export function FormModalCard({
   open,
   onOpenChange,
   title,
   onSubmit,
   children,
   footer,
-}: FormSheetProps) {
+  size = "lg",
+}: FormModalCardProps) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-120">
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-        </SheetHeader>
+    <ModalCard open={open} onOpenChange={onOpenChange}>
+      <ModalCardContent size={size} className="gap-0">
+        <ModalCardHeader>
+          <ModalCardTitle>{title}</ModalCardTitle>
+        </ModalCardHeader>
         <form
           onSubmit={onSubmit}
-          className="flex flex-1 flex-col overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-2">
-            {children}
-          </div>
+          <ModalCardBody className="space-y-3.5">{children}</ModalCardBody>
           {footer}
         </form>
-      </SheetContent>
-    </Sheet>
+      </ModalCardContent>
+    </ModalCard>
   );
 }
+
+/** @deprecated Use FormModalCard — kept as alias during migration. */
+export const FormSheet = FormModalCard;

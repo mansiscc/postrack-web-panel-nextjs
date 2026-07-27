@@ -5,13 +5,17 @@ import {
   createBill,
   createBillEntry,
   createBillItems,
+  existsEntryForSource,
   getBillById,
   getBillItems,
   getManualBillProductId,
   getReturnedQuantitiesByBillItem,
   getSalesCategoryId,
+  getTotalRefundedForBillReturnIds,
   listBillHistory,
+  listBillReturns,
   searchBillingProducts,
+  updateBillPayment,
   type BillListParams,
 } from "@/repositories/bills.repository";
 import { getProductBatchesWithStock } from "@/repositories/products.repository";
@@ -22,6 +26,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/types/auth";
 import {
   calculateBillingTotals,
+  calculateRemainingDue,
   splitPaymentAmounts,
   type DiscountType,
 } from "@/utils/billing-calculator";
@@ -49,7 +54,7 @@ export type SaveBillInput = {
   mixedCashAmount?: number;
   mixedUpiAmount?: number;
   receivedAmount: number;
-  accountId: string;
+  accountId?: string;
 };
 
 export async function getBillingFormOptions() {
@@ -86,10 +91,11 @@ export async function getSalesHistory(params?: BillListParams) {
 
 export async function getBillDetail(billId: string) {
   const supabase = await createClient();
-  const [bill, items, returnedMap] = await Promise.all([
+  const [bill, items, returnedMap, returns] = await Promise.all([
     getBillById(supabase, billId),
     getBillItems(supabase, billId),
     getReturnedQuantitiesByBillItem(supabase, billId),
+    listBillReturns(supabase, billId),
   ]);
 
   if (!bill) return null;
@@ -115,15 +121,142 @@ export async function getBillDetail(billId: string) {
     };
   });
 
-  return { bill, items: itemsWithReturnable, customerName, customerPhone };
+  const totalReturnedAmount = Number(
+    returns
+      .reduce((sum, row) => sum + (row.total_return_amount ?? 0), 0)
+      .toFixed(2),
+  );
+  const alreadyRefunded = await getTotalRefundedForBillReturnIds(
+    supabase,
+    returns.map((row) => row.id),
+  );
+  const remainingDue = calculateRemainingDue({
+    totalPayable: bill.total_payable_amount,
+    totalReturnedAmount,
+    receivedAmount: bill.received_amount_total,
+  });
+
+  return {
+    bill,
+    items: itemsWithReturnable,
+    customerName,
+    customerPhone,
+    returns,
+    totalReturnedAmount,
+    alreadyRefunded,
+    remainingDue,
+  };
+}
+
+export async function completeBillPayment(
+  user: SessionUser,
+  input: { billId: string; accountId?: string | null },
+) {
+  const supabase = await createClient();
+  const [bill, returns, defaultAccount, accounts] = await Promise.all([
+    getBillById(supabase, input.billId),
+    listBillReturns(supabase, input.billId),
+    getDefaultAccount(supabase),
+    listActiveAccounts(supabase),
+  ]);
+
+  if (!bill) {
+    throw new AppError("Bill not found", "NOT_FOUND", 404);
+  }
+
+  const totalReturnedAmount = Number(
+    returns
+      .reduce((sum, row) => sum + (row.total_return_amount ?? 0), 0)
+      .toFixed(2),
+  );
+  const remainingDue = calculateRemainingDue({
+    totalPayable: bill.total_payable_amount,
+    totalReturnedAmount,
+    receivedAmount: bill.received_amount_total,
+  });
+
+  if (remainingDue <= 0) {
+    throw new AppError("No remaining balance to collect", "VALIDATION_ERROR");
+  }
+
+  const accountId =
+    input.accountId ||
+    defaultAccount?.id ||
+    accounts[0]?.id ||
+    null;
+
+  if (!accountId) {
+    throw new AppError("Payment account is required", "VALIDATION_ERROR");
+  }
+
+  const newReceived = Number(
+    (bill.received_amount_total + remainingDue).toFixed(2),
+  );
+  const newCash = Number((bill.cash_amount + remainingDue).toFixed(2));
+
+  await updateBillPayment(supabase, bill.id, {
+    status: "PAID",
+    receivedAmountTotal: newReceived,
+    cashAmount: newCash,
+    onlineAmount: bill.online_amount,
+  });
+
+  const alreadyPosted = await existsEntryForSource(
+    supabase,
+    "bill_payment",
+    bill.id,
+    accountId,
+  );
+
+  if (!alreadyPosted) {
+    const categoryId = await getSalesCategoryId(supabase, user.companyId);
+    if (!categoryId) {
+      throw new AppError("Sales accounting category not found", "NOT_FOUND");
+    }
+
+    const billLabel = bill.bill_number?.trim();
+    await createBillEntry(supabase, {
+      company_id: user.companyId,
+      entry_type: "income",
+      account_id: accountId,
+      category_id: categoryId,
+      amount: remainingDue,
+      entry_date: new Date().toISOString().slice(0, 10),
+      remarks: billLabel
+        ? `Due payment collected for Bill #${billLabel}`
+        : "Due payment collection",
+      source_type: "bill_payment",
+      source_id: bill.id,
+      payment_mode: bill.payment_mode,
+      created_by: user.id,
+    });
+  }
+
+  const headerStore = await headers();
+  await logActivity(supabase, {
+    userId: user.id,
+    userName: user.fullName,
+    companyId: user.companyId,
+    actionType: "Update",
+    moduleName: "Billing",
+    description: `Collected due payment for bill ${bill.bill_number ?? bill.id}`,
+    status: "Success",
+    recordId: bill.id,
+    ipAddress: headerStore.get("x-forwarded-for")?.split(",")[0]?.trim(),
+  });
+
+  return { collectedAmount: remainingDue };
 }
 
 export async function saveBill(user: SessionUser, input: SaveBillInput) {
-  if (!input.items.length) {
-    throw new AppError("Cart is empty", "VALIDATION_ERROR");
+  if (!input.items.length && (input.otherItemsAmount ?? 0) <= 0) {
+    throw new AppError(
+      "Add cart items or an other-items amount",
+      "VALIDATION_ERROR",
+    );
   }
 
-  if (!input.accountId) {
+  if (input.receivedAmount > 0 && !input.accountId) {
     throw new AppError("Payment account is required", "VALIDATION_ERROR");
   }
 
@@ -162,7 +295,10 @@ export async function saveBill(user: SessionUser, input: SaveBillInput) {
     customerPhone: input.customerPhone,
   });
 
-  const manualProductId = await getManualBillProductId(supabase);
+  const hasManual = input.items.some((item) => item.isManual);
+  const manualProductId = hasManual
+    ? await getManualBillProductId(supabase)
+    : null;
 
   const bill = await createBill(supabase, {
     company_id: user.companyId,
@@ -181,20 +317,22 @@ export async function saveBill(user: SessionUser, input: SaveBillInput) {
     created_by_user_id: user.id,
   });
 
-  await createBillItems(
-    supabase,
-    input.items.map((item) => ({
-      company_id: user.companyId,
-      bill_id: bill.id,
-      product_id: item.isManual ? manualProductId : item.productId,
-      product_name: item.productName,
-      barcode: item.barcode ?? null,
-      unit_price: item.unitPrice,
-      quantity: item.quantity,
-      row_total: Number((item.unitPrice * item.quantity).toFixed(2)),
-      batch_id: item.batchId ?? null,
-    })),
-  );
+  if (input.items.length) {
+    await createBillItems(
+      supabase,
+      input.items.map((item) => ({
+        company_id: user.companyId,
+        bill_id: bill.id,
+        product_id: item.isManual ? manualProductId! : item.productId,
+        product_name: item.productName,
+        barcode: item.barcode ?? null,
+        unit_price: item.unitPrice,
+        quantity: item.quantity,
+        row_total: Number((item.unitPrice * item.quantity).toFixed(2)),
+        batch_id: item.batchId ?? null,
+      })),
+    );
+  }
 
   if (totals.receivedAmount > 0) {
     const categoryId = await getSalesCategoryId(supabase, user.companyId);
@@ -205,13 +343,14 @@ export async function saveBill(user: SessionUser, input: SaveBillInput) {
     await createBillEntry(supabase, {
       company_id: user.companyId,
       entry_type: "income",
-      account_id: input.accountId,
+      account_id: input.accountId!,
       category_id: categoryId,
       amount: totals.receivedAmount,
       entry_date: new Date().toISOString().slice(0, 10),
       remarks: `Bill ${bill.bill_number ?? bill.id}`,
       source_type: "bill",
       source_id: bill.id,
+      payment_mode: input.paymentMode,
       created_by: user.id,
     });
   }

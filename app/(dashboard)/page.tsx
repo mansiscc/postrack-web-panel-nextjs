@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 
-import { DashboardPanel } from "@/features/dashboard/components/dashboard-panel";
+import { DashboardPanel } from "@/hooks/features/dashboard/components/dashboard-panel";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getTodayDashboard } from "@/services/dashboard.service";

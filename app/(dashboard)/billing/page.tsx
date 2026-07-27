@@ -1,4 +1,4 @@
-import { BillingWorkspace } from "@/features/billing/components/billing-workspace";
+import { BillingWorkspace } from "@/hooks/features/billing/components/billing-workspace";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getBillingFormOptions } from "@/services/billing.service";
 

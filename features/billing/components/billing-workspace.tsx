@@ -10,9 +10,7 @@ import {
 } from "@/features/billing/actions";
 import { useBillingCart } from "@/features/billing/hooks/use-billing-cart";
 import type { CartItem } from "@/features/billing/types";
-import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +31,7 @@ import type { AccountRow } from "@/repositories/accounts.repository";
 import type { CustomerRow } from "@/repositories/customers.repository";
 import { calculateBillingTotals } from "@/utils/billing-calculator";
 import { formatCurrency } from "@/utils/currency";
+import { cn } from "@/lib/utils";
 
 type BillingProduct = {
   id: string;
@@ -178,84 +177,109 @@ export function BillingWorkspace({
 
   return (
     <>
-      <PageHeader
-        title="POS Billing"
-        description="Search products, build a cart, and process payment."
-      />
-
-      <div className="grid min-h-[calc(100vh-12rem)] gap-4 xl:grid-cols-[280px_minmax(0,1fr)_340px]">
-        <Card className="overflow-hidden">
-          <CardContent className="flex h-full flex-col gap-3 p-4">
+      {/* Full-bleed POS stage: catalog | cart | payment */}
+      <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col xl:flex-row">
+        {/* Catalog — 280px */}
+        <section className="flex min-h-0 w-full flex-col border-b border-border bg-card xl:w-70 xl:shrink-0 xl:border-r xl:border-b-0">
+          <div className="shrink-0 border-b border-border p-3">
             <div className="relative">
-              <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search or scan barcode…"
-                className="pl-9"
+                className="h-10 pl-9"
                 autoFocus
               />
             </div>
-            <div className="flex-1 space-y-2 overflow-y-auto">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => handleProductClick(product)}
-                  className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left hover:bg-muted/50"
-                >
-                  <div>
-                    <p className="font-medium">{product.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Stock {product.stock_quantity}
-                    </p>
-                  </div>
-                  <span className="text-sm font-semibold tabular-nums">
-                    {formatCurrency(product.selling_price)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {filteredProducts.length === 0 ? (
+              <p className="px-2 py-8 text-center text-[13px] text-muted-foreground">
+                Type to search or scan barcode
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {filteredProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => handleProductClick(product)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted/60"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-medium">
+                        {product.name}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-[11px] tabular-nums",
+                          product.stock_quantity <= 0
+                            ? "text-destructive"
+                            : product.stock_quantity <= 5
+                              ? "text-warning"
+                              : "text-muted-foreground",
+                        )}
+                      >
+                        Stock {product.stock_quantity}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[13px] font-semibold tabular-nums">
+                      {formatCurrency(product.selling_price)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
 
-        <Card className="overflow-hidden">
-          <CardContent className="flex h-full flex-col p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-medium">Cart ({cart.items.length})</h2>
-              {cart.items.length > 0 ? (
-                <Button type="button" variant="ghost" size="sm" onClick={clearCart}>
-                  Clear
-                </Button>
-              ) : null}
-            </div>
-            <div className="flex-1 space-y-2 overflow-y-auto">
-              {cart.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Add products from the catalog to start a bill.
-                </p>
-              ) : (
-                cart.items.map((item) => (
+        {/* Cart — flex */}
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-border bg-card xl:border-r xl:border-b-0">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+            <h2 className="text-[13px] font-bold tracking-tight">
+              Cart{" "}
+              <span className="font-medium text-muted-foreground">
+                ({cart.items.length})
+              </span>
+            </h2>
+            {cart.items.length > 0 ? (
+              <Button type="button" variant="ghost" size="sm" onClick={clearCart}>
+                Clear all
+              </Button>
+            ) : null}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            {cart.items.length === 0 ? (
+              <p className="py-12 text-center text-[13px] text-muted-foreground">
+                Add products from the catalog to start a bill.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {cart.items.map((item) => (
                   <CartRow
                     key={item.id}
                     item={item}
                     onQtyChange={updateItemQty}
                     onRemove={removeItem}
                   />
-                ))
-              )}
-            </div>
-            <div className="mt-4 border-t pt-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="tabular-nums">{formatCurrency(totals.subtotal)}</span>
+                ))}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center justify-between border-t border-border bg-muted/40 px-4 py-3">
+            <span className="text-[13px] font-medium text-muted-foreground">
+              Subtotal
+            </span>
+            <span className="text-base font-bold tabular-nums">
+              {formatCurrency(totals.subtotal)}
+            </span>
+          </div>
+        </section>
 
-        <Card>
-          <CardContent className="space-y-4 p-4">
+        {/* Payment — 360px */}
+        <section className="flex min-h-0 w-full flex-col overflow-y-auto bg-card xl:w-90 xl:shrink-0">
+          <div className="space-y-3.5 border-b border-border p-4">
             <div className="space-y-2">
               <Label>Customer</Label>
               <Select
@@ -277,7 +301,7 @@ export function BillingWorkspace({
                   });
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Walk-in" />
                 </SelectTrigger>
                 <SelectContent>
@@ -308,9 +332,11 @@ export function BillingWorkspace({
                 </div>
               ) : null}
             </div>
+          </div>
 
+          <div className="space-y-3.5 border-b border-border p-4">
             <div className="grid grid-cols-2 gap-2">
-              <div>
+              <div className="space-y-1.5">
                 <Label>Other items ₹</Label>
                 <Input
                   type="number"
@@ -324,7 +350,7 @@ export function BillingWorkspace({
                   }
                 />
               </div>
-              <div>
+              <div className="space-y-1.5">
                 <Label>Discount</Label>
                 <div className="flex gap-2">
                   <Select
@@ -338,7 +364,7 @@ export function BillingWorkspace({
                       })
                     }
                   >
-                    <SelectTrigger className="w-24">
+                    <SelectTrigger className="w-20 shrink-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -352,39 +378,41 @@ export function BillingWorkspace({
                     min={0}
                     value={cart.discountValue}
                     onChange={(event) =>
-                      patchCart({ discountValue: Number(event.target.value || 0) })
+                      patchCart({
+                        discountValue: Number(event.target.value || 0),
+                      })
                     }
                   />
                 </div>
               </div>
             </div>
+          </div>
 
-            <div>
+          <div className="space-y-3.5 border-b border-border p-4">
+            <div className="space-y-1.5">
               <Label>Payment mode</Label>
-              <Select
-                value={cart.paymentMode}
-                onValueChange={(value) =>
-                  patchCart({
-                    paymentMode: value as typeof cart.paymentMode,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(["Cash", "UPI", "Card", "Mixed"] as const).map((mode) => (
-                    <SelectItem key={mode} value={mode}>
-                      {mode}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(["Cash", "UPI", "Card", "Mixed"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => patchCart({ paymentMode: mode })}
+                    className={cn(
+                      "rounded-lg border border-border px-1 py-2 text-center text-[12px] font-medium transition-colors",
+                      cart.paymentMode === mode
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "bg-card hover:bg-muted/50",
+                    )}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {cart.paymentMode === "Mixed" ? (
               <div className="grid grid-cols-2 gap-2">
-                <div>
+                <div className="space-y-1.5">
                   <Label>Cash ₹</Label>
                   <Input
                     type="number"
@@ -397,7 +425,7 @@ export function BillingWorkspace({
                     }
                   />
                 </div>
-                <div>
+                <div className="space-y-1.5">
                   <Label>UPI ₹</Label>
                   <Input
                     type="number"
@@ -413,7 +441,7 @@ export function BillingWorkspace({
               </div>
             ) : null}
 
-            <div>
+            <div className="space-y-1.5">
               <Label>Received ₹</Label>
               <Input
                 type="number"
@@ -425,13 +453,15 @@ export function BillingWorkspace({
               />
             </div>
 
-            <div>
+            <div className="space-y-1.5">
               <Label>Account</Label>
               <Select
                 value={cart.selectedAccountId}
-                onValueChange={(value) => patchCart({ selectedAccountId: value })}
+                onValueChange={(value) =>
+                  patchCart({ selectedAccountId: value })
+                }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select account" />
                 </SelectTrigger>
                 <SelectContent>
@@ -443,11 +473,13 @@ export function BillingWorkspace({
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="space-y-1 rounded-lg bg-muted/40 p-3 text-sm">
+          <div className="mt-auto space-y-3 p-4">
+            <div className="space-y-1.5 rounded-lg bg-muted/40 p-3 text-[13px]">
               <div className="flex justify-between">
-                <span>Total payable</span>
-                <span className="font-semibold tabular-nums">
+                <span className="font-medium">Total payable</span>
+                <span className="font-bold tabular-nums">
                   {formatCurrency(totals.totalPayable)}
                 </span>
               </div>
@@ -458,7 +490,7 @@ export function BillingWorkspace({
                 </span>
               </div>
               {totals.remainingAmount > 0 ? (
-                <div className="flex justify-between text-amber-600">
+                <div className="flex justify-between text-warning">
                   <span>Remaining</span>
                   <span className="tabular-nums">
                     {formatCurrency(totals.remainingAmount)}
@@ -469,7 +501,7 @@ export function BillingWorkspace({
 
             <Button
               type="button"
-              className="w-full"
+              className="h-11 w-full"
               disabled={isSaving || cart.items.length === 0}
               onClick={handleSave}
             >
@@ -482,12 +514,15 @@ export function BillingWorkspace({
                 "Review & save"
               )}
             </Button>
-          </CardContent>
-        </Card>
+            <p className="text-center text-[11px] text-muted-foreground">
+              Ctrl+Enter save · / focus search
+            </p>
+          </div>
+        </section>
       </div>
 
       <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-140">
           <DialogHeader>
             <DialogTitle>Select batch</DialogTitle>
           </DialogHeader>
@@ -497,9 +532,10 @@ export function BillingWorkspace({
                 key={batch.id}
                 type="button"
                 onClick={() => setSelectedBatchId(batch.id)}
-                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left ${
-                  selectedBatchId === batch.id ? "border-primary bg-muted" : ""
-                }`}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left",
+                  selectedBatchId === batch.id && "border-primary bg-muted",
+                )}
               >
                 <span>{batch.name}</span>
                 <span className="text-sm text-muted-foreground">
@@ -541,10 +577,10 @@ function CartRow({
   onRemove: (id: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
+    <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{item.productName}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="truncate text-[13px] font-medium">{item.productName}</p>
+        <p className="text-[11px] text-muted-foreground">
           {formatCurrency(item.unitPrice)}
           {item.batchName ? ` · ${item.batchName}` : ""}
         </p>
@@ -558,7 +594,9 @@ function CartRow({
         >
           <Minus />
         </Button>
-        <span className="w-8 text-center text-sm tabular-nums">{item.quantity}</span>
+        <span className="w-8 text-center text-[13px] tabular-nums">
+          {item.quantity}
+        </span>
         <Button
           type="button"
           variant="outline"
@@ -568,6 +606,9 @@ function CartRow({
           <Plus />
         </Button>
       </div>
+      <span className="w-20 shrink-0 text-[13px] font-semibold tabular-nums">
+        {formatCurrency(item.unitPrice * item.quantity)}
+      </span>
       <Button
         type="button"
         variant="ghost"

@@ -1,5 +1,5 @@
-import { CustomerTable } from "@/features/customers/components/customer-table";
-import { mapCustomerRow } from "@/features/customers/types";
+import { CustomerTable } from "@/hooks/features/customers/components/customer-table";
+import { mapCustomerRow } from "@/hooks/features/customers/types";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getCustomersList } from "@/services/customer.service";

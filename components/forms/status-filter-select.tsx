@@ -22,7 +22,7 @@ export function StatusFilterSelect({
 }: StatusFilterSelectProps) {
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className={className}>
+      <SelectTrigger className={`h-9.5 ${className}`}>
         <SelectValue placeholder="Status" />
       </SelectTrigger>
       <SelectContent>

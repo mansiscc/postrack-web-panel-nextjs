@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 
-import type { BusinessProfileInput } from "@/features/business-profile/schema";
+import type { BusinessProfileInput } from "@/hooks/features/business-profile/schema";
 import { logActivity } from "@/lib/activity-log";
 import {
   getCompanyById,

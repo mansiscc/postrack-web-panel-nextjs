@@ -52,19 +52,19 @@ export const NAV_GROUPS: NavGroup[] = [
       { module: "billing", label: "POS Billing", href: "/billing", icon: ScanLine },
       {
         module: "sales",
-        label: "Sales History",
+        label: "Sales / Bill History",
         href: "/sales",
         icon: Receipt,
       },
     ],
   },
   {
-    label: "Inventory",
+    label: "Inventory & Procurement",
     items: [
       { module: "products", label: "Products", href: "/products", icon: Package },
       {
         module: "categories",
-        label: "Categories",
+        label: "Product Categories",
         href: "/categories",
         icon: Tags,
       },
@@ -76,15 +76,39 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         module: "suppliers",
-        label: "Suppliers",
+        label: "Supplier Management",
         href: "/suppliers",
         icon: Truck,
       },
       {
         module: "purchases",
-        label: "Purchases",
+        label: "Purchase Management",
         href: "/purchases",
         icon: ShoppingBag,
+      },
+    ],
+  },
+  {
+    label: "Management",
+    items: [
+      { module: "users", label: "User Management", href: "/users", icon: UserCog },
+      {
+        module: "activity-log",
+        label: "Activity Log",
+        href: "/activity-log",
+        icon: ScrollText,
+      },
+      {
+        module: "customers",
+        label: "Customer Management",
+        href: "/customers",
+        icon: Users,
+      },
+      {
+        module: "business-profile",
+        label: "Business Profile",
+        href: "/settings/business-profile",
+        icon: Building2,
       },
     ],
   },
@@ -108,30 +132,6 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Bank Accounts",
         href: "/accounts",
         icon: Landmark,
-      },
-    ],
-  },
-  {
-    label: "Management",
-    items: [
-      {
-        module: "customers",
-        label: "Customers",
-        href: "/customers",
-        icon: Users,
-      },
-      { module: "users", label: "Users", href: "/users", icon: UserCog },
-      {
-        module: "activity-log",
-        label: "Activity Log",
-        href: "/activity-log",
-        icon: ScrollText,
-      },
-      {
-        module: "business-profile",
-        label: "Business Profile",
-        href: "/settings/business-profile",
-        icon: Building2,
       },
     ],
   },

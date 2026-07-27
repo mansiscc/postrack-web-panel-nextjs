@@ -2,7 +2,7 @@ import { Lock } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { logoutAction } from "@/features/auth/actions";
+import { logoutAction } from "@/hooks/features/auth/actions";
 import { getAuthProfile } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +29,7 @@ export default async function InactiveCompanyPage() {
   }
 
   return (
-    <Card className="w-full max-w-lg border shadow-sm">
+    <Card className="w-full max-w-lg">
       <CardHeader className="text-center">
         <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-destructive/10">
           <Lock className="size-6 text-destructive" strokeWidth={1.75} />

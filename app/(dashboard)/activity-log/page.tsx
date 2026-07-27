@@ -1,4 +1,4 @@
-import { ActivityLogTable } from "@/features/activity-log/components/activity-log-table";
+import { ActivityLogTable } from "@/hooks/features/activity-log/components/activity-log-table";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
   getActivityLogFilterOptions,

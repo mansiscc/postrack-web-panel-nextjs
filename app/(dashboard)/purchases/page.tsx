@@ -1,5 +1,5 @@
-import { PurchaseTable } from "@/features/purchases/components/purchase-table";
-import { mapPurchaseRow } from "@/features/purchases/types";
+import { PurchaseTable } from "@/hooks/features/purchases/components/purchase-table";
+import { mapPurchaseRow } from "@/hooks/features/purchases/types";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getPurchasesList } from "@/services/stock-in.service";

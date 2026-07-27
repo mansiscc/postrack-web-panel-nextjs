@@ -12,27 +12,48 @@ const cartItemSchema = z.object({
   isManual: z.boolean().optional(),
 });
 
-export const saveBillSchema = z.object({
-  items: z.array(cartItemSchema).min(1, "Cart is empty"),
-  customerId: z
-    .union([z.string().uuid(), z.literal(""), z.null()])
-    .optional()
-    .transform((value) => (value && value !== "" ? value : null)),
-  customerName: z.string().trim().optional(),
-  customerPhone: z.string().trim().optional(),
-  otherItemsAmount: z.number().min(0).optional(),
-  discountType: z.enum(["AMOUNT", "PERCENT"]).optional().nullable(),
-  discountValue: z.number().min(0).optional(),
-  paymentMode: z.enum(["Cash", "UPI", "Card", "Mixed"]),
-  mixedCashAmount: z.number().min(0).optional(),
-  mixedUpiAmount: z.number().min(0).optional(),
-  receivedAmount: z.number().min(0),
-  accountId: z.string().uuid("Select a payment account"),
-});
+export const saveBillSchema = z
+  .object({
+    items: z.array(cartItemSchema).default([]),
+    customerId: z
+      .union([z.string().uuid(), z.literal(""), z.null()])
+      .optional()
+      .transform((value) => (value && value !== "" ? value : null)),
+    customerName: z.string().trim().optional(),
+    customerPhone: z.string().trim().optional(),
+    otherItemsAmount: z.number().min(0).optional(),
+    discountType: z.enum(["AMOUNT", "PERCENT"]).optional().nullable(),
+    discountValue: z.number().min(0).optional(),
+    paymentMode: z.enum(["Cash", "UPI", "Card", "Mixed"]),
+    mixedCashAmount: z.number().min(0).optional(),
+    mixedUpiAmount: z.number().min(0).optional(),
+    receivedAmount: z.number().min(0),
+    accountId: z
+      .union([z.string().uuid(), z.literal("")])
+      .optional()
+      .transform((value) => (value && value !== "" ? value : "")),
+  })
+  .superRefine((data, ctx) => {
+    if (data.items.length === 0 && (data.otherItemsAmount ?? 0) <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Add cart items or an other-items amount",
+        path: ["items"],
+      });
+    }
+    if (data.receivedAmount > 0 && !data.accountId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select a payment account",
+        path: ["accountId"],
+      });
+    }
+  });
 
 export const returnBillSchema = z.object({
   billId: z.string().uuid(),
   refundMethod: z.enum(["Cash", "UPI", "Card", "Mixed"]),
+  refundAccountId: z.string().uuid("Select a refund account"),
   returnNote: z.string().trim().max(500).optional().nullable(),
   items: z
     .array(
@@ -47,5 +68,14 @@ export const returnBillSchema = z.object({
     .min(1, "Select at least one item to return"),
 });
 
+export const completePaymentSchema = z.object({
+  billId: z.string().uuid(),
+  accountId: z
+    .union([z.string().uuid(), z.literal(""), z.null()])
+    .optional()
+    .transform((value) => (value && value !== "" ? value : null)),
+});
+
 export type SaveBillInput = z.infer<typeof saveBillSchema>;
 export type ReturnBillInput = z.infer<typeof returnBillSchema>;
+export type CompletePaymentInput = z.infer<typeof completePaymentSchema>;

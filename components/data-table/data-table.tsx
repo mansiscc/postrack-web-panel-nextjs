@@ -53,58 +53,84 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className={cn("overflow-hidden rounded-lg border bg-card", className)}>
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-card">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="hover:bg-transparent">
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  className="h-10 text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && "selected"}
-                className={cn(
-                  "h-11",
-                  onRowClick && "cursor-pointer",
-                )}
-                onClick={() => onRowClick?.(row.original)}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-4 py-3 text-sm">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
+    <div
+      className={cn(
+        // Border on the outer node; clip on the inner so overflow doesn't
+        // shave anti-aliased corner pixels off the stroke.
+        "rounded-xl border border-border bg-card",
+        className,
+      )}
+    >
+      <div className="overflow-hidden rounded-[inherit]">
+        <Table>
+          <TableHeader className="bg-muted/60">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    className="h-10 px-3.5 text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
                 ))}
               </TableRow>
-            ))
-          ) : (
-            <TableRow className="hover:bg-transparent">
-              <TableCell
-                colSpan={columns.length}
-                className="h-32 text-center text-sm text-muted-foreground"
-              >
-                {emptyMessage}
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  className={cn(
+                    "h-10 transition-colors duration-150",
+                    onRowClick && "cursor-pointer",
+                  )}
+                  onClick={(event) => {
+                    if (!onRowClick) return;
+                    const target = event.target as HTMLElement;
+                    if (
+                      target.closest(
+                        "[data-row-action], button, a, input, label, [role='checkbox'], [role='switch'], [role='combobox']",
+                      )
+                    ) {
+                      return;
+                    }
+                    onRowClick(row.original);
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className="px-3.5 py-2.5 text-[13px] leading-snug"
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-36 border-b-0 text-center text-[13px] text-muted-foreground"
+                >
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

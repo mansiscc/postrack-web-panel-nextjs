@@ -38,19 +38,21 @@ export function DataTablePagination({
   return (
     <div
       className={cn(
-        "mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+        "mt-3 flex flex-col gap-2.5 rounded-xl border border-border bg-card px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
-      <p className="text-sm text-muted-foreground">
-        Showing <span className="tabular-nums">{from}</span>–
-        <span className="tabular-nums">{to}</span> of{" "}
-        <span className="tabular-nums">{total}</span>
+      <p className="text-xs text-muted-foreground">
+        Showing{" "}
+        <span className="font-medium tabular-nums text-foreground">{from}</span>
+        –
+        <span className="font-medium tabular-nums text-foreground">{to}</span> of{" "}
+        <span className="font-medium tabular-nums text-foreground">{total}</span>
       </p>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         {onPageSizeChange ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Rows</span>
+            <span className="text-xs text-muted-foreground">Rows</span>
             <Select
               value={String(pageSize)}
               onValueChange={(value) => onPageSizeChange(Number(value))}
@@ -79,7 +81,7 @@ export function DataTablePagination({
           >
             <ChevronLeft />
           </Button>
-          <span className="min-w-16 text-center text-sm tabular-nums">
+          <span className="min-w-14 text-center text-xs font-medium tabular-nums">
             {page} / {pageCount}
           </span>
           <Button

@@ -1,24 +1,76 @@
-import { SalesTable } from "@/features/sales/components/sales-table";
-import { mapSalesRow } from "@/features/sales/types";
+import { SalesTable } from "@/hooks/features/sales/components/sales-table";
+import { mapSalesRow } from "@/hooks/features/sales/types";
 import { PageHeader } from "@/components/layout/page-header";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { requireModuleAccess } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
+import {
+  getDefaultAccount,
+  listActiveAccounts,
+} from "@/repositories/accounts.repository";
 import { getSalesHistory } from "@/services/billing.service";
+import { resolveSalesDateRange } from "@/utils/url-query";
 
-export default async function SalesPage() {
+type SalesPageProps = {
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    payment?: string;
+    date?: string;
+    page?: string;
+    pageSize?: string;
+  }>;
+};
+
+export default async function SalesPage({ searchParams }: SalesPageProps) {
   const user = await requireModuleAccess("sales");
-  const result = await getSalesHistory({ page: 1, pageSize: 50 });
+  const params = await searchParams;
+  const page = Math.max(1, Number(params.page) || 1);
+  const pageSize = Math.min(
+    50,
+    Math.max(10, Number(params.pageSize) || DEFAULT_PAGE_SIZE),
+  );
+  const status = params.status ?? "all";
+  const paymentMode = params.payment ?? "all";
+  const search = params.q?.trim() ?? "";
+  const { date, dateFrom, dateTo } = resolveSalesDateRange(params.date);
+
+  const supabase = await createClient();
+  const [result, accounts, defaultAccount] = await Promise.all([
+    getSalesHistory({
+      page,
+      pageSize,
+      search: search || undefined,
+      status: status as never,
+      paymentMode: paymentMode as never,
+      dateFrom,
+      dateTo,
+    }),
+    listActiveAccounts(supabase),
+    getDefaultAccount(supabase),
+  ]);
   const canExport = user.role === "Admin" || user.role === "Manager";
 
   return (
     <>
       <PageHeader
         title="Sales history"
-        description="View bills, receipts, and process returns."
+        description="View bills, receipts, collect dues, and process returns."
       />
       <SalesTable
         sales={result.items.map(mapSalesRow)}
         total={result.total}
+        page={page}
+        pageSize={pageSize}
+        filters={{
+          search,
+          status,
+          paymentMode,
+          date,
+        }}
         canExport={canExport}
+        accounts={accounts}
+        defaultAccountId={defaultAccount?.id ?? accounts[0]?.id ?? null}
       />
     </>
   );

@@ -9,11 +9,15 @@ export type BillHistoryRow =
 
 export type BillRow = Database["public"]["Tables"]["bills"]["Row"];
 export type BillItemRow = Database["public"]["Tables"]["bill_items"]["Row"];
+export type BillReturnRow =
+  Database["public"]["Tables"]["bill_returns"]["Row"];
 
 export type BillListParams = {
   search?: string;
   status?: BillHistoryRow["status"] | "all";
   paymentMode?: BillHistoryRow["payment_mode"] | "all";
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   pageSize?: number;
 };
@@ -41,7 +45,7 @@ export async function listBillHistory(
     const term = sanitizePostgrestSearch(params.search);
     if (term) {
       query = query.or(
-        `bill_number.ilike.%${term}%,customer_name.ilike.%${term}%,customer_phone.ilike.%${term}%`,
+        `bill_number.ilike.%${term}%,customer_name.ilike.%${term}%,customer_phone.ilike.%${term}%,created_by_name.ilike.%${term}%`,
       );
     }
   }
@@ -52,6 +56,14 @@ export async function listBillHistory(
 
   if (params.paymentMode && params.paymentMode !== "all") {
     query = query.eq("payment_mode", params.paymentMode);
+  }
+
+  if (params.dateFrom) {
+    query = query.gte("created_at", params.dateFrom);
+  }
+
+  if (params.dateTo) {
+    query = query.lte("created_at", params.dateTo);
   }
 
   const { data, error, count } = await query.range(from, to);
@@ -161,6 +173,115 @@ export async function getSalesCategoryId(
 
   if (error) throw mapSupabaseError(error);
   return data?.id ?? null;
+}
+
+export async function getSalesReturnCategoryId(
+  supabase: SupabaseClient<Database>,
+  companyId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("accounting_categories")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("name", "Sales Return")
+    .eq("type", "expense")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) throw mapSupabaseError(error);
+  return data?.id ?? null;
+}
+
+export async function listBillReturns(
+  supabase: SupabaseClient<Database>,
+  billId: string,
+): Promise<BillReturnRow[]> {
+  const { data, error } = await supabase
+    .from("bill_returns")
+    .select("*")
+    .eq("bill_id", billId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw mapSupabaseError(error);
+  return data ?? [];
+}
+
+export async function getTotalRefundedForBillReturnIds(
+  supabase: SupabaseClient<Database>,
+  returnIds: string[],
+): Promise<number> {
+  if (!returnIds.length) return 0;
+
+  const { data, error } = await supabase
+    .from("entries")
+    .select("amount")
+    .eq("source_type", "bill_return")
+    .eq("is_deleted", false)
+    .in("source_id", returnIds);
+
+  if (error) throw mapSupabaseError(error);
+  return Number(
+    (data ?? [])
+      .reduce((sum, row) => sum + (row.amount ?? 0), 0)
+      .toFixed(2),
+  );
+}
+
+export async function existsEntryForSource(
+  supabase: SupabaseClient<Database>,
+  sourceType: NonNullable<
+    Database["public"]["Tables"]["entries"]["Row"]["source_type"]
+  >,
+  sourceId: string,
+  accountId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("entries")
+    .select("id")
+    .eq("source_type", sourceType)
+    .eq("source_id", sourceId)
+    .eq("account_id", accountId)
+    .eq("is_deleted", false)
+    .maybeSingle();
+
+  if (error) throw mapSupabaseError(error);
+  return Boolean(data?.id);
+}
+
+export async function updateBillPayment(
+  supabase: SupabaseClient<Database>,
+  billId: string,
+  input: {
+    status: BillRow["status"];
+    receivedAmountTotal: number;
+    cashAmount: number;
+    onlineAmount: number;
+  },
+) {
+  const { error } = await supabase
+    .from("bills")
+    .update({
+      status: input.status,
+      received_amount_total: input.receivedAmountTotal,
+      cash_amount: input.cashAmount,
+      online_amount: input.onlineAmount,
+    })
+    .eq("id", billId);
+
+  if (error) throw mapSupabaseError(error);
+}
+
+export async function updateBillReturnRefundStatus(
+  supabase: SupabaseClient<Database>,
+  returnId: string,
+  refundStatus: BillReturnRow["refund_status"],
+) {
+  const { error } = await supabase
+    .from("bill_returns")
+    .update({ refund_status: refundStatus })
+    .eq("id", returnId);
+
+  if (error) throw mapSupabaseError(error);
 }
 
 export async function getManualBillProductId(

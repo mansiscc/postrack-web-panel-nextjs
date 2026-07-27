@@ -102,3 +102,40 @@ export function splitPaymentAmounts(
   }
   return { cashAmount: 0, onlineAmount: receivedAmount };
 }
+
+/**
+ * Android ProcessBillReturnUseCase refund rule:
+ * refund only overpayment vs net payable after returns (never refund unpaid dues).
+ */
+export function calculateRefundPayableNow(input: {
+  totalPayable: number;
+  receivedAmount: number;
+  previousReturnedAmount: number;
+  thisReturnAmount: number;
+  alreadyRefunded: number;
+}): number {
+  const netPayableAfterThisReturn =
+    input.totalPayable -
+    input.previousReturnedAmount -
+    input.thisReturnAmount;
+  const totalRefundDue = Math.max(
+    input.receivedAmount - netPayableAfterThisReturn,
+    0,
+  );
+  return Number(
+    Math.min(
+      Math.max(totalRefundDue - input.alreadyRefunded, 0),
+      input.thisReturnAmount,
+    ).toFixed(2),
+  );
+}
+
+/** Remaining due after returns: (payable − returned) − received. */
+export function calculateRemainingDue(input: {
+  totalPayable: number;
+  totalReturnedAmount: number;
+  receivedAmount: number;
+}): number {
+  const netPayable = input.totalPayable - input.totalReturnedAmount;
+  return Number((netPayable - input.receivedAmount).toFixed(2));
+}

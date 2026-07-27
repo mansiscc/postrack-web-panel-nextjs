@@ -1,5 +1,8 @@
 {
   "npm.packageManager": "npm",
   "npm.exclude": "**/node_modules/**",
-  "npm.autoDetect": "on"
+  "npm.autoDetect": "on",
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore"
 }

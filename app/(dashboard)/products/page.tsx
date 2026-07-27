@@ -1,5 +1,5 @@
-import { ProductTable } from "@/features/products/components/product-table";
-import { mapProductRow } from "@/features/products/types";
+import { ProductTable } from "@/hooks/features/products/components/product-table";
+import { mapProductRow } from "@/hooks/features/products/types";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getCategoriesList } from "@/services/category.service";

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   calculateBillingTotals,
   calculateDiscountAmount,
+  calculateRefundPayableNow,
+  calculateRemainingDue,
   calculateSubtotal,
   splitPaymentAmounts,
 } from "@/utils/billing-calculator";
@@ -73,5 +75,67 @@ describe("splitPaymentAmounts", () => {
       cashAmount: 0,
       onlineAmount: 500,
     });
+  });
+});
+
+describe("calculateRefundPayableNow", () => {
+  it("refunds nothing when bill was unpaid", () => {
+    expect(
+      calculateRefundPayableNow({
+        totalPayable: 1000,
+        receivedAmount: 0,
+        previousReturnedAmount: 0,
+        thisReturnAmount: 400,
+        alreadyRefunded: 0,
+      }),
+    ).toBe(0);
+  });
+
+  it("refunds overpayment after full return on paid bill", () => {
+    expect(
+      calculateRefundPayableNow({
+        totalPayable: 1000,
+        receivedAmount: 1000,
+        previousReturnedAmount: 0,
+        thisReturnAmount: 1000,
+        alreadyRefunded: 0,
+      }),
+    ).toBe(1000);
+  });
+
+  it("refunds only overpayment on partial pay", () => {
+    expect(
+      calculateRefundPayableNow({
+        totalPayable: 1000,
+        receivedAmount: 400,
+        previousReturnedAmount: 0,
+        thisReturnAmount: 600,
+        alreadyRefunded: 0,
+      }),
+    ).toBe(0);
+  });
+
+  it("caps second return by already refunded amount", () => {
+    expect(
+      calculateRefundPayableNow({
+        totalPayable: 1000,
+        receivedAmount: 1000,
+        previousReturnedAmount: 400,
+        thisReturnAmount: 400,
+        alreadyRefunded: 400,
+      }),
+    ).toBe(400);
+  });
+});
+
+describe("calculateRemainingDue", () => {
+  it("computes due after returns", () => {
+    expect(
+      calculateRemainingDue({
+        totalPayable: 1000,
+        totalReturnedAmount: 200,
+        receivedAmount: 500,
+      }),
+    ).toBe(300);
   });
 });

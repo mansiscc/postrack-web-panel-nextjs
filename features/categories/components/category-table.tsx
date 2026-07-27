@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Plus, Tags } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
 import { useTableRefresh } from "@/hooks/use-table-refresh";
@@ -15,6 +15,7 @@ import { CategoryFormSheet } from "@/features/categories/components/category-for
 import type { CategoryListItem } from "@/features/categories/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { StatusBadge } from "@/components/forms/status-badge";
@@ -22,14 +23,7 @@ import { SearchInput } from "@/components/forms/search-input";
 import { StatusFilterSelect } from "@/components/forms/status-filter-select";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
-import { Tags } from "lucide-react";
 
 type CategoryTableProps = {
   categories: CategoryListItem[];
@@ -114,11 +108,10 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
           <DataTableColumnHeader
             column={column}
             title="Products"
-            className="justify-end"
           />
         ),
         cell: ({ row }) => (
-          <div className="text-right tabular-nums">{row.original.productCount}</div>
+          <div className="tabular-nums">{row.original.productCount}</div>
         ),
       },
       {
@@ -144,34 +137,17 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
       },
       {
         id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" size="icon-sm">
-                <MoreHorizontal />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  setEditing(row.original);
-                  setSheetOpen(true);
-                }}
-              >
-                <Pencil />
-                Edit
-              </DropdownMenuItem>
-              {canDelete ? (
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => setDeleteTarget(row.original)}
-                >
-                  <Trash2 />
-                  Delete
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <RowActions
+            onEdit={() => {
+              setEditing(row.original);
+              setSheetOpen(true);
+            }}
+            onDelete={
+              canDelete ? () => setDeleteTarget(row.original) : undefined
+            }
+          />
         ),
       },
     ],
@@ -221,7 +197,14 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
           }
         />
       ) : (
-        <DataTable columns={columns} data={filtered} />
+        <DataTable
+          columns={columns}
+          data={filtered}
+          onRowClick={(row) => {
+            setEditing(row);
+            setSheetOpen(true);
+          }}
+        />
       )}
 
       <CategoryFormSheet

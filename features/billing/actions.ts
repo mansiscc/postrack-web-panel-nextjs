@@ -2,9 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 
-import { returnBillSchema, saveBillSchema } from "@/features/billing/schema";
+import {
+  completePaymentSchema,
+  returnBillSchema,
+  saveBillSchema,
+} from "@/features/billing/schema";
 import { requireModuleAccess } from "@/lib/auth/session";
-import { saveBill, getBillingProductBatches, getBillDetail } from "@/services/billing.service";
+import {
+  completeBillPayment,
+  getBillingProductBatches,
+  getBillDetail,
+  saveBill,
+} from "@/services/billing.service";
 import { processBillReturn } from "@/services/return.service";
 import { actionError, actionSuccess, type ActionResult } from "@/utils/action-result";
 import { AppError, getErrorMessage } from "@/utils/errors";
@@ -24,6 +33,8 @@ export async function saveBillAction(
     revalidatePath("/sales");
     revalidatePath("/products");
     revalidatePath("/inventory");
+    revalidatePath("/transactions");
+    revalidatePath("/accounts");
     return actionSuccess({ id: bill.id, billNumber: bill.bill_number });
   } catch (error) {
     if (error instanceof AppError) return actionError(error.message);
@@ -43,7 +54,7 @@ export async function getBillDetailAction(id: string) {
 
 export async function processReturnAction(
   input: unknown,
-): Promise<ActionResult<{ returnNumber: string }>> {
+): Promise<ActionResult<{ returnNumber: string; refundAmount: number }>> {
   try {
     const user = await requireModuleAccess("sales");
     const parsed = returnBillSchema.safeParse(input);
@@ -55,7 +66,33 @@ export async function processReturnAction(
     revalidatePath("/sales");
     revalidatePath("/products");
     revalidatePath("/inventory");
-    return actionSuccess({ returnNumber: result.returnNumber });
+    revalidatePath("/transactions");
+    revalidatePath("/accounts");
+    return actionSuccess({
+      returnNumber: result.returnNumber,
+      refundAmount: result.refundAmount,
+    });
+  } catch (error) {
+    if (error instanceof AppError) return actionError(error.message);
+    return actionError(getErrorMessage(error));
+  }
+}
+
+export async function completePaymentAction(
+  input: unknown,
+): Promise<ActionResult<{ collectedAmount: number }>> {
+  try {
+    const user = await requireModuleAccess("sales");
+    const parsed = completePaymentSchema.safeParse(input);
+    if (!parsed.success) {
+      return actionError(parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+
+    const result = await completeBillPayment(user, parsed.data);
+    revalidatePath("/sales");
+    revalidatePath("/transactions");
+    revalidatePath("/accounts");
+    return actionSuccess({ collectedAmount: result.collectedAmount });
   } catch (error) {
     if (error instanceof AppError) return actionError(error.message);
     return actionError(getErrorMessage(error));

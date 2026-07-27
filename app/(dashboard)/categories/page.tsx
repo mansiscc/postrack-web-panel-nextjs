@@ -1,5 +1,5 @@
-import { CategoryTable } from "@/features/categories/components/category-table";
-import { mapCategoryRow } from "@/features/categories/types";
+import { CategoryTable } from "@/hooks/features/categories/components/category-table";
+import { mapCategoryRow } from "@/hooks/features/categories/types";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getCategoriesList } from "@/services/category.service";
 import { PageHeader } from "@/components/layout/page-header";

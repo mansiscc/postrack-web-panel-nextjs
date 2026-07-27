@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { PurchaseInsightsPanel } from "@/features/analytics/components/purchase-insights-panel";
+import { PurchaseInsightsPanel } from "@/hooks/features/analytics/components/purchase-insights-panel";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {

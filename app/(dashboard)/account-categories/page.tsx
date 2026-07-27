@@ -1,5 +1,5 @@
-import { AccountingCategoryTable } from "@/features/account-categories/components/accounting-category-table";
-import { mapAccountingCategoryRow } from "@/features/account-categories/types";
+import { AccountingCategoryTable } from "@/hooks/features/account-categories/components/accounting-category-table";
+import { mapAccountingCategoryRow } from "@/hooks/features/account-categories/types";
 import { requireModuleAccess } from "@/lib/auth/session";
 import { getAccountingCategoriesList } from "@/services/accounting-category.service";
 import { PageHeader } from "@/components/layout/page-header";

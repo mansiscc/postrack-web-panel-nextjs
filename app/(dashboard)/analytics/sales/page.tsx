@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { SalesAnalyticsPanel } from "@/features/analytics/components/sales-analytics-panel";
+import { SalesAnalyticsPanel } from "@/hooks/features/analytics/components/sales-analytics-panel";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
