@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 
 import { PurchaseInsightsPanel } from "@/hooks/features/analytics/components/purchase-insights-panel";
-import { PageHeader } from "@/components/layout/page-header";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
   getPurchaseInsightsSummary,
@@ -32,25 +31,19 @@ export default async function PurchaseInsightsPage({
   const rangeLabel = getRangeLabel(range);
 
   return (
-    <>
-      <PageHeader
-        title="Purchase insights"
-        description="Analyze procurement trends and stock-in data."
-      />
-      <Suspense
-        fallback={
-          <div className="space-y-4">
-            <Skeleton className="h-10 w-full max-w-2xl" />
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-28" />
-              ))}
-            </div>
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full max-w-2xl" />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-28" />
+            ))}
           </div>
-        }
-      >
-        <PurchaseInsightsPanel summary={summary} rangeLabel={rangeLabel} />
-      </Suspense>
-    </>
+        </div>
+      }
+    >
+      <PurchaseInsightsPanel summary={summary} rangeLabel={rangeLabel} />
+    </Suspense>
   );
 }

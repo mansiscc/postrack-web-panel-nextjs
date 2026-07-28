@@ -74,8 +74,8 @@ function ModalCardContent({
       <DialogPrimitive.Content
         data-slot="modal-card-content"
         className={cn(
-          // Viewport-filling card shell (matches sibling admin modals)
-          "fixed top-1/2 left-1/2 z-50 flex min-h-0 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-card p-0 text-sm text-card-foreground shadow-xl outline-none",
+          // Android Surface dialog: soft elevation, 16 radius, white card
+          "fixed top-1/2 left-1/2 z-50 flex min-h-0 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border-0 bg-card p-0 text-sm text-card-foreground shadow-overlay outline-none",
           "max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)]",
           "duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           sizeClasses[size],
@@ -109,7 +109,7 @@ function ModalCardHeader({
     <div
       data-slot="modal-card-header"
       className={cn(
-        "shrink-0 border-b border-border bg-muted/40 px-5 py-4 pr-12",
+        "shrink-0 border-b border-border/60 bg-card px-5 py-4 pr-12",
         className,
       )}
       {...props}
@@ -167,7 +167,7 @@ function ModalCardFooter({
     <div
       data-slot="modal-card-footer"
       className={cn(
-        "mt-auto flex shrink-0 flex-row items-center justify-end gap-2 border-t border-border bg-card px-5 py-4",
+        "mt-auto flex shrink-0 flex-row items-center justify-end gap-3 border-t border-border/60 bg-card px-5 py-4",
         className,
       )}
       {...props}

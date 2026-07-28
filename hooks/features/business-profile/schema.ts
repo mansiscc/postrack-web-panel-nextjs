@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 export const businessProfileSchema = z.object({
-  businessName: z.string().trim().min(1, "Business name is required").max(200),
+  businessName: z
+    .string()
+    .trim()
+    .min(1, "Business name is required")
+    .max(200),
+  businessCategory: z.string().trim().max(100).optional().nullable(),
   phone: z.string().trim().max(20).optional().nullable(),
   email: z
     .string()
@@ -17,7 +22,11 @@ export const businessProfileSchema = z.object({
     .string()
     .trim()
     .min(1, "Invoice prefix is required")
-    .max(10, "Max 10 characters"),
+    .max(6, "Invoice prefix must be 1-6 letters/numbers (A-Z, 0-9)")
+    .regex(
+      /^[A-Za-z0-9]+$/,
+      "Invoice prefix must be 1-6 letters/numbers (A-Z, 0-9)",
+    ),
   receiptFooter: z.string().trim().max(500).optional().nullable(),
   showLogoOnBill: z.boolean(),
   logoUrl: z.string().url().optional().nullable().or(z.literal("")),

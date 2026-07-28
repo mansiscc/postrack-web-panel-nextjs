@@ -158,38 +158,97 @@ export async function createBillEntry(
   if (error) throw mapSupabaseError(error);
 }
 
-export async function getSalesCategoryId(
+/**
+ * Android AccountingRepositoryImpl: match system category by name (ignore case),
+ * type, without requiring is_active. Inactive system categories are reactivated.
+ */
+async function findSystemAccountingCategoryId(
   supabase: SupabaseClient<Database>,
   companyId: string,
+  name: string,
+  type: "income" | "expense",
+  options?: { ensure?: boolean; userId?: string; description?: string },
 ): Promise<string | null> {
   const { data, error } = await supabase
     .from("accounting_categories")
-    .select("id")
+    .select("id, is_active")
     .eq("company_id", companyId)
-    .eq("name", "Sales")
-    .eq("type", "income")
-    .eq("is_active", true)
-    .maybeSingle();
+    .eq("type", type)
+    .ilike("name", name)
+    .order("is_active", { ascending: false })
+    .limit(1);
 
   if (error) throw mapSupabaseError(error);
-  return data?.id ?? null;
+
+  let row = data?.[0] ?? null;
+
+  if (row && !row.is_active) {
+    const { error: activateError } = await supabase
+      .from("accounting_categories")
+      .update({ is_active: true, updated_by: options?.userId ?? null })
+      .eq("id", row.id);
+    // Staff/Manager cannot update categories; still allow posting with the id.
+    if (!activateError) {
+      row = { ...row, is_active: true };
+    }
+  }
+
+  if (!row && options?.ensure && options.userId) {
+    const { data: created, error: insertError } = await supabase
+      .from("accounting_categories")
+      .insert({
+        company_id: companyId,
+        name,
+        type,
+        description: options.description ?? null,
+        is_active: true,
+        created_by: options.userId,
+        updated_by: options.userId,
+      })
+      .select("id, is_active")
+      .maybeSingle();
+
+    // Admin can insert; others hit RLS — fall through to null.
+    if (!insertError && created) {
+      row = created;
+    }
+  }
+
+  return row?.id ?? null;
+}
+
+export async function getSalesCategoryId(
+  supabase: SupabaseClient<Database>,
+  companyId: string,
+  options?: { ensure?: boolean; userId?: string },
+): Promise<string | null> {
+  return findSystemAccountingCategoryId(
+    supabase,
+    companyId,
+    "Sales",
+    "income",
+    {
+      ...options,
+      description: "Sales income from customer bills",
+    },
+  );
 }
 
 export async function getSalesReturnCategoryId(
   supabase: SupabaseClient<Database>,
   companyId: string,
+  options?: { ensure?: boolean; userId?: string },
 ): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("accounting_categories")
-    .select("id")
-    .eq("company_id", companyId)
-    .eq("name", "Sales Return")
-    .eq("type", "expense")
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error) throw mapSupabaseError(error);
-  return data?.id ?? null;
+  return findSystemAccountingCategoryId(
+    supabase,
+    companyId,
+    "Sales Return",
+    "expense",
+    {
+      ...options,
+      description: "Sales return / customer refunds",
+    },
+  );
 }
 
 export async function listBillReturns(
@@ -200,6 +259,25 @@ export async function listBillReturns(
     .from("bill_returns")
     .select("*")
     .eq("bill_id", billId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw mapSupabaseError(error);
+  return data ?? [];
+}
+
+export type BillReturnItemRow =
+  Database["public"]["Tables"]["bill_return_items"]["Row"];
+
+export async function listBillReturnItems(
+  supabase: SupabaseClient<Database>,
+  returnIds: string[],
+): Promise<BillReturnItemRow[]> {
+  if (!returnIds.length) return [];
+
+  const { data, error } = await supabase
+    .from("bill_return_items")
+    .select("*")
+    .in("return_id", returnIds)
     .order("created_at", { ascending: true });
 
   if (error) throw mapSupabaseError(error);

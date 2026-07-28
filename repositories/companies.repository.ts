@@ -24,6 +24,7 @@ export async function updateCompanyProfile(
   companyId: string,
   input: {
     businessName: string;
+    businessCategory?: string | null;
     phone?: string | null;
     email?: string | null;
     address?: string | null;
@@ -38,11 +39,12 @@ export async function updateCompanyProfile(
     .from("companies")
     .update({
       business_name: input.businessName.trim(),
+      business_category: input.businessCategory?.trim() || null,
       phone: input.phone?.trim() || null,
       owner_email: input.email?.trim() || null,
       address: input.address?.trim() || null,
       gstin: input.gstin?.trim() || null,
-      invoice_prefix: input.invoicePrefix.trim(),
+      invoice_prefix: input.invoicePrefix.trim().toUpperCase(),
       receipt_footer: input.receiptFooter?.trim() || null,
       show_logo_on_bill: input.showLogoOnBill,
       logo_url: input.logoUrl ?? null,

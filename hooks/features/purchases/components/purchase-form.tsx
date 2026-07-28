@@ -129,7 +129,6 @@ export function PurchaseForm({
     <>
       <PageHeader
         title="New purchase"
-        description="Record a stock-in entry with line items and payment account."
         actions={
           <>
             <Button type="button" variant="ghost" asChild>

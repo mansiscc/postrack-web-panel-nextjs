@@ -16,12 +16,12 @@ export function PageSkeleton({ rows = 8, className }: PageSkeletonProps) {
         </div>
         <Skeleton className="h-10 w-32" />
       </div>
-      <div className="rounded-xl border border-border bg-card">
+      <div className="rounded-lg border-0 bg-card shadow-card">
         <div className="overflow-hidden rounded-[inherit]">
-          <div className="border-b border-border px-4 py-3">
+          <div className="border-b border-border/60 px-4 py-3">
             <Skeleton className="h-4 w-full max-w-md" />
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border/60">
             {Array.from({ length: rows }).map((_, index) => (
               <div key={index} className="flex items-center gap-4 px-4 py-3">
                 <Skeleton className="h-4 w-1/4" />

@@ -13,6 +13,7 @@ export default async function BusinessProfilePage() {
 
   const initial: BusinessProfileInput = {
     businessName: company.business_name,
+    businessCategory: company.business_category ?? "",
     phone: company.phone,
     email: company.owner_email,
     address: company.address,

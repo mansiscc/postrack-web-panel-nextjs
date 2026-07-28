@@ -35,7 +35,7 @@ export const emptyCartState = (accountId = ""): BillingCartState => ({
   mixedCashAmount: 0,
   mixedUpiAmount: 0,
   otherItemsAmount: 0,
-  discountType: null,
+  discountType: "AMOUNT",
   discountValue: 0,
   receivedAmount: 0,
   selectedAccountId: accountId,

@@ -165,8 +165,8 @@ export function TransactionTable({
             className={cn(
               "capitalize",
               row.original.entryType === "income"
-                ? "border-emerald-200 text-emerald-700"
-                : "border-rose-200 text-rose-700",
+                ? "border-success/30 text-success"
+                : "border-destructive/30 text-destructive",
             )}
           >
             {row.original.entryType}
@@ -196,8 +196,8 @@ export function TransactionTable({
             className={cn(
               "tabular-nums font-medium",
               row.original.entryType === "income"
-                ? "text-emerald-700"
-                : "text-rose-700",
+                ? "text-success"
+                : "text-destructive",
             )}
           >
             {row.original.entryType === "income" ? "+" : "-"}

@@ -13,6 +13,7 @@ import {
   getSalesCategoryId,
   getTotalRefundedForBillReturnIds,
   listBillHistory,
+  listBillReturnItems,
   listBillReturns,
   searchBillingProducts,
   updateBillPayment,
@@ -121,6 +122,22 @@ export async function getBillDetail(billId: string) {
     };
   });
 
+  const returnItems = await listBillReturnItems(
+    supabase,
+    returns.map((row) => row.id),
+  );
+  const returnItemsByReturnId = new Map<string, typeof returnItems>();
+  for (const item of returnItems) {
+    const list = returnItemsByReturnId.get(item.return_id) ?? [];
+    list.push(item);
+    returnItemsByReturnId.set(item.return_id, list);
+  }
+
+  const returnsWithItems = returns.map((row) => ({
+    ...row,
+    items: returnItemsByReturnId.get(row.id) ?? [],
+  }));
+
   const totalReturnedAmount = Number(
     returns
       .reduce((sum, row) => sum + (row.total_return_amount ?? 0), 0)
@@ -141,7 +158,7 @@ export async function getBillDetail(billId: string) {
     items: itemsWithReturnable,
     customerName,
     customerPhone,
-    returns,
+    returns: returnsWithItems,
     totalReturnedAmount,
     alreadyRefunded,
     remainingDue,
@@ -209,7 +226,10 @@ export async function completeBillPayment(
   );
 
   if (!alreadyPosted) {
-    const categoryId = await getSalesCategoryId(supabase, user.companyId);
+    const categoryId = await getSalesCategoryId(supabase, user.companyId, {
+      ensure: true,
+      userId: user.id,
+    });
     if (!categoryId) {
       throw new AppError("Sales accounting category not found", "NOT_FOUND");
     }
@@ -335,7 +355,10 @@ export async function saveBill(user: SessionUser, input: SaveBillInput) {
   }
 
   if (totals.receivedAmount > 0) {
-    const categoryId = await getSalesCategoryId(supabase, user.companyId);
+    const categoryId = await getSalesCategoryId(supabase, user.companyId, {
+      ensure: true,
+      userId: user.id,
+    });
     if (!categoryId) {
       throw new AppError("Sales accounting category not found", "NOT_FOUND");
     }

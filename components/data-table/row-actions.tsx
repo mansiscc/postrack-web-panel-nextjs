@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 type RowActionsProps = {
   onEdit?: () => void;
   onDelete?: () => void;
+  deleteDisabled?: boolean;
   onRestore?: () => void;
   onPassword?: () => void;
   children?: ReactNode;
@@ -22,6 +23,7 @@ function stopRowClick(event: MouseEvent) {
 export function RowActions({
   onEdit,
   onDelete,
+  deleteDisabled,
   onRestore,
   onPassword,
   children,
@@ -72,7 +74,11 @@ export function RowActions({
           variant="ghost"
           size="icon-sm"
           aria-label="Delete"
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          disabled={deleteDisabled}
+          className={cn(
+            "text-destructive hover:bg-destructive/10 hover:text-destructive",
+            deleteDisabled && "opacity-50",
+          )}
           onClick={onDelete}
         >
           <Trash2 />

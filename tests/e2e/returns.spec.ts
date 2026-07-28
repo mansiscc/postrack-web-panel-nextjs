@@ -10,10 +10,10 @@ test.describe("Sales returns", () => {
   test("loads sales history for return processing", async ({ page }) => {
     await page.goto("/sales");
     await expect(
-      page.getByRole("heading", { name: "Sales history" }),
+      page.getByRole("heading", { name: "Sales History" }),
     ).toBeVisible();
     await expect(
-      page.getByPlaceholder("Search bill, customer, phone…"),
+      page.getByPlaceholder("Bill no., customer, phone or cashier"),
     ).toBeVisible();
   });
 });

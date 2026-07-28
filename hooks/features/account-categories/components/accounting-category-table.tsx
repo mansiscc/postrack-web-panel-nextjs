@@ -21,8 +21,9 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
 import { StatusFilterSelect } from "@/components/forms/status-filter-select";
-import { StatusBadge } from "@/components/forms/status-badge";
+import { ActiveStatusToggle, StatusBadge } from "@/components/forms/status-badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -30,8 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 
 type AccountingCategoryTableProps = {
   categories: AccountingCategoryListItem[];
@@ -92,7 +91,7 @@ export function AccountingCategoryTable({
         return;
       }
       setItems((prev) => prev.filter((row) => row.id !== deleteTarget.id));
-      toast.success("Category deleted");
+      toast.success("Category removed");
       setDeleteTarget(null);
     });
   };
@@ -117,9 +116,14 @@ export function AccountingCategoryTable({
         accessorKey: "type",
         header: "Type",
         cell: ({ row }) => (
-          <Badge variant="outline" className="capitalize">
-            {row.original.type}
-          </Badge>
+          <StatusBadge
+            status={row.original.type === "income" ? "active" : "inactive"}
+            label={
+              row.original.type.charAt(0).toUpperCase() +
+              row.original.type.slice(1)
+            }
+            showDot={false}
+          />
         ),
       },
       {
@@ -149,17 +153,11 @@ export function AccountingCategoryTable({
         accessorKey: "isActive",
         header: "Status",
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={row.original.isActive}
-              disabled={row.original.isSystem}
-              onCheckedChange={(checked) => handleToggle(row.original, checked)}
-            />
-            <StatusBadge
-              status={row.original.isActive ? "active" : "inactive"}
-              label={row.original.isActive ? "Active" : "Inactive"}
-            />
-          </div>
+          <ActiveStatusToggle
+            isActive={row.original.isActive}
+            onToggle={(checked) => handleToggle(row.original, checked)}
+            disabled={row.original.isSystem}
+          />
         ),
       },
       {
@@ -172,10 +170,9 @@ export function AccountingCategoryTable({
               setSheetOpen(true);
             }}
             onDelete={
-              canDelete && !row.original.isSystem
-                ? () => setDeleteTarget(row.original)
-                : undefined
+              canDelete ? () => setDeleteTarget(row.original) : undefined
             }
+            deleteDisabled={row.original.isSystem}
           />
         ),
       },
@@ -185,11 +182,23 @@ export function AccountingCategoryTable({
 
   return (
     <>
-      <DataTableToolbar>
+      <DataTableToolbar
+        actions={
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setSheetOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Add Category
+          </Button>
+        }
+      >
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search categories…"
+          placeholder="Search categories by name"
           className="w-full sm:max-w-xs"
         />
         <Select
@@ -206,22 +215,13 @@ export function AccountingCategoryTable({
           </SelectContent>
         </Select>
         <StatusFilterSelect value={status} onValueChange={setStatus} />
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setSheetOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Add category
-        </Button>
       </DataTableToolbar>
 
       {filtered.length === 0 ? (
         <EmptyState
           icon={FolderTree}
-          title="No account categories yet"
-          description="Create income and expense categories for transactions."
+          title="No categories found"
+          description="Add a category to get started."
           action={
             <Button
               onClick={() => {
@@ -230,7 +230,7 @@ export function AccountingCategoryTable({
               }}
             >
               <Plus className="h-4 w-4" />
-              Add category
+              Add Category
             </Button>
           }
         />
@@ -255,8 +255,8 @@ export function AccountingCategoryTable({
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete category"
-        description={`Delete "${deleteTarget?.name}"? This cannot be undone.`}
+        title="Delete Category?"
+        description="This permanently removes the category. It only works when no transactions use it. Use Deactivate to hide from new entries instead."
         confirmLabel="Delete"
         destructive
         onConfirm={handleDelete}

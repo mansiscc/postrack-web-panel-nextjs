@@ -138,8 +138,9 @@ export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
         header: "Status",
         cell: ({ row }) => (
           <StatusBadge
-            status={row.original.isDeleted ? "inactive" : "active"}
+            status={row.original.isDeleted ? "deleted" : "active"}
             label={row.original.isDeleted ? "Deleted" : "Active"}
+            showDot
           />
         ),
       },

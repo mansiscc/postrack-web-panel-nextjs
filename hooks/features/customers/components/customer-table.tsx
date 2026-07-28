@@ -15,9 +15,8 @@ import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
 import { StatusFilterSelect } from "@/components/forms/status-filter-select";
-import { StatusBadge } from "@/components/forms/status-badge";
+import { ActiveStatusToggle } from "@/components/forms/status-badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { updateCustomerAction } from "@/hooks/features/customers/actions";
 import { useTransition } from "react";
@@ -93,19 +92,9 @@ export function CustomerTable({ customers }: CustomerTableProps) {
         accessorKey: "isActive",
         header: "Status",
         cell: ({ row }) => (
-          <StatusBadge
-            status={row.original.isActive ? "active" : "inactive"}
-            label={row.original.isActive ? "Active" : "Inactive"}
-          />
-        ),
-      },
-      {
-        id: "activeToggle",
-        header: "Active",
-        cell: ({ row }) => (
-          <Switch
-            checked={row.original.isActive}
-            onCheckedChange={(checked) => handleToggle(row.original, checked)}
+          <ActiveStatusToggle
+            isActive={row.original.isActive}
+            onToggle={(checked) => handleToggle(row.original, checked)}
           />
         ),
       },

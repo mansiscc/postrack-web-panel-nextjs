@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -16,22 +15,14 @@ import {
 } from "@/hooks/features/account-categories/schema";
 import type { AccountingCategoryListItem } from "@/hooks/features/account-categories/types";
 import { FormField } from "@/components/forms/form-field";
-import { Button } from "@/components/ui/button";
+import { CategoryTypeSelector } from "@/components/forms/category-type-selector";
+import { FormSheetFooter } from "@/components/forms/form-sheet-footer";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   ModalCard,
   ModalCardBody,
   ModalCardContent,
-  ModalCardFooter,
   ModalCardHeader,
   ModalCardTitle,
 } from "@/components/ui/modal-card";
@@ -81,7 +72,7 @@ export function AccountingCategoryFormSheet({
       return;
     }
 
-    toast.success(isEdit ? "Category updated" : "Category created");
+    toast.success(isEdit ? "Category updated" : "Category added");
     onOpenChange(false);
     onSuccess();
   });
@@ -91,7 +82,7 @@ export function AccountingCategoryFormSheet({
       <ModalCardContent size="lg">
         <ModalCardHeader>
           <ModalCardTitle>
-            {isEdit ? "Edit account category" : "Add account category"}
+            {isEdit ? "Edit Category" : "Add Category"}
           </ModalCardTitle>
         </ModalCardHeader>
         <form
@@ -101,42 +92,32 @@ export function AccountingCategoryFormSheet({
           <ModalCardBody className="space-y-4">
             {category?.isSystem ? (
               <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                System category used by billing and purchases. Name, type, and
-                active status are locked.
+                Name and type cannot be changed for system categories.
               </p>
             ) : null}
             <FormField
-              label="Name"
+              label="Category Name"
               htmlFor="name"
               required
               error={form.formState.errors.name?.message}
             >
               <Input
                 id="name"
+                placeholder="Enter category name"
                 {...form.register("name")}
-                disabled={category?.isSystem}
+                disabled={Boolean(category?.isSystem && isEdit)}
               />
             </FormField>
             <FormField
-              label="Type"
+              label="Category Type"
               required
               error={form.formState.errors.type?.message}
             >
-              <Select
+              <CategoryTypeSelector
                 value={form.watch("type")}
-                onValueChange={(value: "income" | "expense") =>
-                  form.setValue("type", value)
-                }
-                disabled={isEdit || category?.isSystem}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="income">Income</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(value) => form.setValue("type", value)}
+                disabled={Boolean(category?.isSystem && isEdit)}
+              />
             </FormField>
             <FormField
               label="Description"
@@ -146,38 +127,16 @@ export function AccountingCategoryFormSheet({
               <Textarea
                 id="description"
                 rows={3}
+                placeholder="Enter description (optional)"
                 {...form.register("description")}
               />
             </FormField>
-            <FormField label="Active">
-              <Switch
-                checked={form.watch("isActive")}
-                disabled={category?.isSystem}
-                onCheckedChange={(checked) =>
-                  form.setValue("isActive", checked)
-                }
-              />
-            </FormField>
           </ModalCardBody>
-          <ModalCardFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                "Save"
-              )}
-            </Button>
-          </ModalCardFooter>
+          <FormSheetFooter
+            onCancel={() => onOpenChange(false)}
+            isSubmitting={form.formState.isSubmitting}
+            submitLabel={isEdit ? "Update" : "Add Category"}
+          />
         </form>
       </ModalCardContent>
     </ModalCard>

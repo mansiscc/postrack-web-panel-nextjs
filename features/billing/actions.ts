@@ -64,6 +64,7 @@ export async function processReturnAction(
 
     const result = await processBillReturn(user, parsed.data);
     revalidatePath("/sales");
+    revalidatePath(`/sales/${parsed.data.billId}`);
     revalidatePath("/products");
     revalidatePath("/inventory");
     revalidatePath("/transactions");
@@ -90,6 +91,7 @@ export async function completePaymentAction(
 
     const result = await completeBillPayment(user, parsed.data);
     revalidatePath("/sales");
+    revalidatePath(`/sales/${parsed.data.billId}`);
     revalidatePath("/transactions");
     revalidatePath("/accounts");
     return actionSuccess({ collectedAmount: result.collectedAmount });

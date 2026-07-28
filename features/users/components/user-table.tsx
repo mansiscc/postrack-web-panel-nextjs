@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import {
   deleteUserAction,
   restoreUserAction,
+  updateUserAction,
 } from "@/features/users/actions";
 import { ChangePasswordDialog } from "@/features/users/components/change-password-dialog";
 import { UserFormSheet } from "@/features/users/components/user-form-sheet";
@@ -19,7 +20,7 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { StatusBadge } from "@/components/forms/status-badge";
+import { ActiveStatusToggle, StatusBadge } from "@/components/forms/status-badge";
 import { SearchInput } from "@/components/forms/search-input";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 type UserTableProps = {
   users: UserListItem[];
@@ -89,6 +91,25 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
     });
   };
 
+  const handleToggleStatus = (user: UserListItem, nextActive: boolean) => {
+    startTransition(async () => {
+      const result = await updateUserAction(user.id, {
+        fullName: user.fullName,
+        phone: user.phone,
+        role: user.role,
+        status: nextActive ? "Active" : "Inactive",
+        permissionStockIn: user.permissions.includes("stock_in"),
+        permissionStockOut: user.permissions.includes("stock_out"),
+      });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(nextActive ? "User activated" : "User deactivated");
+      refresh();
+    });
+  };
+
   const columns = useMemo<ColumnDef<UserListItem>[]>(
     () => [
       {
@@ -104,9 +125,22 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
       {
         accessorKey: "role",
         header: "Role",
-        cell: ({ row }) => (
-          <Badge variant="secondary">{row.original.role}</Badge>
-        ),
+        cell: ({ row }) => {
+          const role = row.original.role;
+          return (
+            <Badge
+              variant="secondary"
+              className={cn(
+                "border-transparent",
+                role === "Admin" && "bg-primary-muted text-primary",
+                role === "Manager" && "bg-info/15 text-info",
+                role === "Staff" && "bg-muted text-muted-foreground",
+              )}
+            >
+              {role}
+            </Badge>
+          );
+        },
       },
       {
         id: "permissions",
@@ -127,22 +161,19 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => (
-          <StatusBadge
-            status={
-              row.original.isDeleted
-                ? "deleted"
-                : row.original.status === "Active"
-                  ? "active"
-                  : "inactive"
-            }
-            label={
-              row.original.isDeleted
-                ? "Deleted"
-                : row.original.status
-            }
-          />
-        ),
+        cell: ({ row }) => {
+          const user = row.original;
+          if (user.isDeleted) {
+            return <StatusBadge status="deleted" label="Deleted" showDot />;
+          }
+          return (
+            <ActiveStatusToggle
+              isActive={user.status === "Active"}
+              disabled={user.id === currentUserId}
+              onToggle={(checked) => handleToggleStatus(user, checked)}
+            />
+          );
+        },
       },
       {
         id: "actions",

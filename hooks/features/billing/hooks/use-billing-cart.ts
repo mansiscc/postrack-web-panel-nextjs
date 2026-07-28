@@ -88,17 +88,26 @@ export function useBillingCart(companyId: string, defaultAccountId: string) {
   }, []);
 
   const updateItemQty = useCallback((id: string, quantity: number) => {
-    setCart((prev) => ({
-      ...prev,
-      items: prev.items.map((item) => {
-        if (item.id !== id) return item;
-        const capped =
-          !item.isManual && item.maxQuantity
-            ? Math.min(Math.max(quantity, 0), item.maxQuantity)
-            : Math.max(quantity, 0);
-        return { ...item, quantity: capped };
-      }),
-    }));
+    setCart((prev) => {
+      if (quantity <= 0) {
+        return {
+          ...prev,
+          items: prev.items.filter((item) => item.id !== id),
+        };
+      }
+
+      return {
+        ...prev,
+        items: prev.items.map((item) => {
+          if (item.id !== id) return item;
+          const capped =
+            !item.isManual && item.maxQuantity
+              ? Math.min(quantity, item.maxQuantity)
+              : quantity;
+          return { ...item, quantity: capped };
+        }),
+      };
+    });
   }, []);
 
   const removeItem = useCallback((id: string) => {

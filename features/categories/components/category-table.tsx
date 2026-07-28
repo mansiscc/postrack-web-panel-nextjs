@@ -18,12 +18,11 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { StatusBadge } from "@/components/forms/status-badge";
+import { ActiveStatusToggle } from "@/components/forms/status-badge";
 import { SearchInput } from "@/components/forms/search-input";
 import { StatusFilterSelect } from "@/components/forms/status-filter-select";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 
 type CategoryTableProps = {
   categories: CategoryListItem[];
@@ -118,20 +117,9 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
         accessorKey: "isActive",
         header: "Status",
         cell: ({ row }) => (
-          <StatusBadge
-            status={row.original.isActive ? "active" : "inactive"}
-            label={row.original.isActive ? "Active" : "Inactive"}
-          />
-        ),
-      },
-      {
-        id: "activeToggle",
-        header: "Active",
-        cell: ({ row }) => (
-          <Switch
-            checked={row.original.isActive}
-            onCheckedChange={(checked) => handleToggle(row.original, checked)}
-            aria-label={`Toggle ${row.original.name}`}
+          <ActiveStatusToggle
+            isActive={row.original.isActive}
+            onToggle={(checked) => handleToggle(row.original, checked)}
           />
         ),
       },
@@ -166,14 +154,14 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
             }}
           >
             <Plus />
-            Add category
+            Add Category
           </Button>
         }
       >
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search categories…"
+          placeholder="Search categories by name"
         />
         <StatusFilterSelect value={status} onValueChange={setStatus} />
       </DataTableToolbar>
@@ -182,7 +170,7 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
         <EmptyState
           icon={Tags}
           title="No categories found"
-          description="Add a category to organize your products."
+          description="Add a category to get started."
           action={
             <Button
               type="button"
@@ -192,7 +180,7 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
               }}
             >
               <Plus />
-              Add category
+              Add Category
             </Button>
           }
         />

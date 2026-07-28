@@ -22,9 +22,8 @@ import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
 import { StatusFilterSelect } from "@/components/forms/status-filter-select";
-import { StatusBadge } from "@/components/forms/status-badge";
+import { ActiveStatusToggle } from "@/components/forms/status-badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/utils/currency";
 
@@ -158,16 +157,10 @@ export function AccountTable({ accounts, canDelete }: AccountTableProps) {
         accessorKey: "isActive",
         header: "Status",
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={row.original.isActive}
-              onCheckedChange={(checked) => handleToggle(row.original, checked)}
-            />
-            <StatusBadge
-              status={row.original.isActive ? "active" : "inactive"}
-              label={row.original.isActive ? "Active" : "Inactive"}
-            />
-          </div>
+          <ActiveStatusToggle
+            isActive={row.original.isActive}
+            onToggle={(checked) => handleToggle(row.original, checked)}
+          />
         ),
       },
       {

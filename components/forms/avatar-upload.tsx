@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Upload } from "lucide-react";
+import { ImageIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -13,6 +13,12 @@ type AvatarUploadProps = {
   onChange: (url: string | null) => void;
   disabled?: boolean;
   className?: string;
+  layout?: "avatar" | "banner";
+  emptyLabel?: string;
+  chooseLabel?: string;
+  changeLabel?: string;
+  removeLabel?: string;
+  helpText?: string;
 };
 
 export function AvatarUpload({
@@ -20,6 +26,12 @@ export function AvatarUpload({
   onChange,
   disabled,
   className,
+  layout = "avatar",
+  emptyLabel = "No logo selected",
+  chooseLabel = "Choose Logo",
+  changeLabel = "Change Logo",
+  removeLabel = "Remove Logo",
+  helpText,
 }: AvatarUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -47,22 +59,41 @@ export function AvatarUpload({
     }
   };
 
+  const isBanner = layout === "banner";
+
   return (
-    <div className={cn("flex items-center gap-4", className)}>
-      <div className="relative flex size-20 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+    <div className={cn("space-y-3", className)}>
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-xl bg-surface-variant",
+          isBanner ? "aspect-[1.8/1] w-full" : "size-20 rounded-lg border border-border",
+        )}
+      >
         {value ? (
           <Image
             src={value}
             alt="Business logo"
             fill
-            className="object-cover"
+            className={isBanner ? "object-contain p-3" : "object-cover"}
             unoptimized
           />
         ) : (
-          <Upload className="size-6 text-muted-foreground" />
+          <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImageIcon className={isBanner ? "size-7" : "size-6"} />
+            {isBanner ? (
+              <span className="text-xs">{emptyLabel}</span>
+            ) : null}
+          </div>
         )}
       </div>
-      <div className="space-y-2">
+
+      {helpText ? (
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          {helpText}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
         <input
           ref={inputRef}
           type="file"
@@ -79,25 +110,28 @@ export function AvatarUpload({
           variant="outline"
           disabled={disabled || isUploading}
           onClick={() => inputRef.current?.click()}
+          className={isBanner ? "flex-1" : undefined}
         >
           {isUploading ? (
             <>
               <Loader2 className="animate-spin" />
               Uploading…
             </>
+          ) : value ? (
+            changeLabel
           ) : (
-            "Upload logo"
+            chooseLabel
           )}
         </Button>
         {value ? (
           <Button
             type="button"
-            variant="ghost"
-            size="sm"
+            variant="outline"
             disabled={disabled || isUploading}
             onClick={() => onChange(null)}
+            className={isBanner ? "flex-1" : undefined}
           >
-            Remove
+            {removeLabel}
           </Button>
         ) : null}
       </div>

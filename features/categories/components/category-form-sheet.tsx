@@ -14,12 +14,17 @@ import {
   type CategoryFormInput,
 } from "@/features/categories/schema";
 import type { CategoryListItem } from "@/features/categories/types";
-import { FormSheet } from "@/components/forms/form-sheet";
-import { FormSheetFooter } from "@/components/forms/form-sheet-footer";
 import { FormField } from "@/components/forms/form-field";
+import { FormSheetFooter } from "@/components/forms/form-sheet-footer";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  ModalCard,
+  ModalCardBody,
+  ModalCardContent,
+  ModalCardHeader,
+  ModalCardTitle,
+} from "@/components/ui/modal-card";
 
 type CategoryFormSheetProps = {
   open: boolean;
@@ -64,45 +69,56 @@ export function CategoryFormSheet({
       return;
     }
 
-    toast.success(isEdit ? "Category updated" : "Category created");
+    toast.success(isEdit ? "Category updated" : "Category added");
     onOpenChange(false);
     onSuccess();
   });
 
   return (
-    <FormSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={isEdit ? "Edit category" : "Add category"}
-      onSubmit={onSubmit}
-      footer={
-        <FormSheetFooter
-          onCancel={() => onOpenChange(false)}
-          isSubmitting={form.formState.isSubmitting}
-        />
-      }
-    >
-      <FormField
-        label="Name"
-        htmlFor="name"
-        required
-        error={form.formState.errors.name?.message}
-      >
-        <Input id="name" {...form.register("name")} />
-      </FormField>
-      <FormField
-        label="Description"
-        htmlFor="description"
-        error={form.formState.errors.description?.message}
-      >
-        <Textarea id="description" rows={3} {...form.register("description")} />
-      </FormField>
-      <FormField label="Active">
-        <Switch
-          checked={form.watch("isActive")}
-          onCheckedChange={(checked) => form.setValue("isActive", checked)}
-        />
-      </FormField>
-    </FormSheet>
+    <ModalCard open={open} onOpenChange={onOpenChange}>
+      <ModalCardContent size="lg">
+        <ModalCardHeader>
+          <ModalCardTitle>
+            {isEdit ? "Edit Category" : "Add Category"}
+          </ModalCardTitle>
+        </ModalCardHeader>
+        <form
+          onSubmit={onSubmit}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <ModalCardBody className="space-y-4">
+            <FormField
+              label="Category Name"
+              htmlFor="name"
+              required
+              error={form.formState.errors.name?.message}
+            >
+              <Input
+                id="name"
+                placeholder="Enter category name"
+                {...form.register("name")}
+              />
+            </FormField>
+            <FormField
+              label="Description"
+              htmlFor="description"
+              error={form.formState.errors.description?.message}
+            >
+              <Textarea
+                id="description"
+                rows={3}
+                placeholder="Enter description (optional)"
+                {...form.register("description")}
+              />
+            </FormField>
+          </ModalCardBody>
+          <FormSheetFooter
+            onCancel={() => onOpenChange(false)}
+            isSubmitting={form.formState.isSubmitting}
+            submitLabel={isEdit ? "Update" : "Add Category"}
+          />
+        </form>
+      </ModalCardContent>
+    </ModalCard>
   );
 }

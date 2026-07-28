@@ -52,7 +52,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { module: "billing", label: "POS Billing", href: "/billing", icon: ScanLine },
       {
         module: "sales",
-        label: "Sales / Bill History",
+        label: "Sales History",
         href: "/sales",
         icon: Receipt,
       },

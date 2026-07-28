@@ -55,9 +55,8 @@ export function DataTable<TData, TValue>({
   return (
     <div
       className={cn(
-        // Border on the outer node; clip on the inner so overflow doesn't
-        // shave anti-aliased corner pixels off the stroke.
-        "rounded-xl border border-border bg-card",
+        // Android AppCard shell for tables: soft elevation, no hard border frame
+        "rounded-lg border-0 bg-card shadow-card",
         className,
       )}
     >
@@ -69,7 +68,7 @@ export function DataTable<TData, TValue>({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="h-10 px-3.5 text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase"
+                    className="h-10 px-3.5 text-[11px] font-semibold leading-normal tracking-[0.04em] text-muted-foreground uppercase"
                   >
                     {header.isPlaceholder
                       ? null

@@ -24,6 +24,11 @@ export async function getProductsList(params?: ProductListParams) {
   return listProducts(supabase, params);
 }
 
+export async function getProductByIdRecord(productId: string) {
+  const supabase = await createClient();
+  return getProductById(supabase, productId);
+}
+
 export async function getProductDetailBundle(productId: string) {
   const supabase = await createClient();
   const [details, batches] = await Promise.all([

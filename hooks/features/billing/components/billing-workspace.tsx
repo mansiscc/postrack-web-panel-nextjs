@@ -1,12 +1,19 @@
 "use client";
 
 import {
+  ArrowRight,
+  CreditCard,
+  IndianRupee,
   Loader2,
   Minus,
+  Percent,
   Plus,
   Printer,
   Search,
-  Trash2,
+  Smartphone,
+  Split,
+  Wallet,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -16,6 +23,7 @@ import {
   useRef,
   useState,
   useTransition,
+  type ReactNode,
 } from "react";
 import { toast } from "sonner";
 
@@ -42,6 +50,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import type { AccountRow } from "@/repositories/accounts.repository";
 import type { CustomerRow } from "@/repositories/customers.repository";
 import { calculateBillingTotals } from "@/utils/billing-calculator";
@@ -78,6 +92,8 @@ type SavedBillInfo = {
   billNumber: string | null;
 };
 
+type BillingTotals = ReturnType<typeof calculateBillingTotals>;
+
 export function BillingWorkspace({
   companyId,
   products,
@@ -97,10 +113,7 @@ export function BillingWorkspace({
   const searchRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
-  const [manualDialogOpen, setManualDialogOpen] = useState(false);
-  const [manualName, setManualName] = useState("");
-  const [manualPrice, setManualPrice] = useState("");
-  const [manualQty, setManualQty] = useState("1");
+  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
   const [savedBill, setSavedBill] = useState<SavedBillInfo | null>(null);
   const [pendingProduct, setPendingProduct] = useState<BillingProduct | null>(
     null,
@@ -111,13 +124,15 @@ export function BillingWorkspace({
   const [isLoadingBatches, startBatchLoad] = useTransition();
 
   const filteredProducts = useMemo(() => {
-    const term = search.toLowerCase();
-    return products.filter(
-      (product) =>
-        !term ||
-        product.name.toLowerCase().includes(term) ||
-        (product.barcode?.toLowerCase().includes(term) ?? false),
-    );
+    const term = search.trim().toLowerCase();
+    if (!term) return [];
+    return products
+      .filter(
+        (product) =>
+          product.name.toLowerCase().includes(term) ||
+          (product.barcode?.toLowerCase().includes(term) ?? false),
+      )
+      .slice(0, 12);
   }, [products, search]);
 
   const totals = useMemo(
@@ -133,6 +148,11 @@ export function BillingWorkspace({
         receivedAmount: cart.receivedAmount,
       }),
     [cart],
+  );
+
+  const totalItemQty = useMemo(
+    () => cart.items.reduce((sum, item) => sum + item.quantity, 0),
+    [cart.items],
   );
 
   const canSave =
@@ -201,50 +221,13 @@ export function BillingWorkspace({
     }
   };
 
-  const handleAddManual = () => {
-    const name = manualName.trim();
-    const price = Number(manualPrice || 0);
-    const quantity = Math.max(1, Math.floor(Number(manualQty || 1)));
-
-    if (!name) {
-      toast.error("Manual item name is required");
-      return;
-    }
-    if (price <= 0) {
-      toast.error("Manual item price must be greater than 0");
-      return;
-    }
-
+  const handleAddManual = (name: string, price: number) => {
     addItem({
       productId: crypto.randomUUID(),
       productName: name,
       unitPrice: price,
-      quantity,
+      quantity: 1,
       isManual: true,
-    });
-    setManualDialogOpen(false);
-    setManualName("");
-    setManualPrice("");
-    setManualQty("1");
-  };
-
-  const handleReceiveRemaining = () => {
-    if (totals.remainingAmount <= 0) return;
-    patchCart({
-      receivedAmount: Number(
-        (cart.receivedAmount + totals.remainingAmount).toFixed(2),
-      ),
-    });
-  };
-
-  const handleWaiveRemaining = () => {
-    if (totals.remainingAmount <= 0) return;
-    const nextDiscount = Number(
-      (totals.discountAmount + totals.remainingAmount).toFixed(2),
-    );
-    patchCart({
-      discountType: "AMOUNT",
-      discountValue: nextDiscount,
     });
   };
 
@@ -292,6 +275,7 @@ export function BillingWorkspace({
         billNumber: result.data.billNumber,
       };
       clearCart();
+      setPaymentSheetOpen(false);
 
       const { openReceiptAfterSave } = readPrintSettings();
       if (openReceiptAfterSave) {
@@ -332,100 +316,99 @@ export function BillingWorkspace({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  const paymentPanel = (
+    <PaymentPanel
+      cart={cart}
+      customers={customers}
+      accounts={accounts}
+      totals={totals}
+      canSave={canSave}
+      isSaving={isSaving}
+      onPatch={patchCart}
+      onSave={handleSave}
+    />
+  );
+
   return (
     <>
-      <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col xl:flex-row">
-        {/* Catalog */}
-        <section className="flex min-h-0 w-full flex-col border-b border-border bg-card xl:w-70 xl:shrink-0 xl:border-r xl:border-b-0">
-          <div className="shrink-0 space-y-2 border-b border-border p-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={searchRef}
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleBarcodeOrSearchEnter();
-                  }
-                }}
-                placeholder="Search or scan barcode…"
-                className="h-10 pl-9"
-                autoFocus
-              />
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => setManualDialogOpen(true)}
-            >
-              Add manual item
-            </Button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-2">
-            {filteredProducts.length === 0 ? (
-              <p className="px-2 py-8 text-center text-[13px] text-muted-foreground">
-                Type to search or scan barcode
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {filteredProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    onClick={() => handleProductClick(product)}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted/60"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-[13px] font-medium">
-                        {product.name}
-                      </p>
-                      <p
-                        className={cn(
-                          "text-[11px] tabular-nums",
-                          product.stock_quantity <= 0
-                            ? "text-destructive"
-                            : product.stock_quantity <= 5
-                              ? "text-warning"
-                              : "text-muted-foreground",
-                        )}
-                      >
-                        Stock {product.stock_quantity}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-[13px] font-semibold tabular-nums">
-                      {formatCurrency(product.selling_price)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+      <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col bg-surface-variant xl:flex-row">
+        {/* Catalog — desktop only */}
+        <section className="hidden min-h-0 w-full flex-col border-b border-border/60 bg-card shadow-card-sm xl:flex xl:w-[20%] xl:shrink-0 xl:border-r xl:border-b-0">
+          <SearchAndManualSection
+            searchRef={searchRef}
+            search={search}
+            onSearchChange={setSearch}
+            onSearchEnter={handleBarcodeOrSearchEnter}
+            onClearSearch={() => setSearch("")}
+            onAddManual={handleAddManual}
+            overlay={
+              filteredProducts.length > 0 ? (
+                <ProductSearchDropdown
+                  products={filteredProducts}
+                  onSelect={(product) => {
+                    handleProductClick(product);
+                    setSearch("");
+                  }}
+                />
+              ) : null
+            }
+          />
+          <CatalogProductList
+            products={products}
+            onProductClick={handleProductClick}
+          />
         </section>
 
+        {/* Mobile search + manual */}
+        <div className="shrink-0 border-b border-border/60 bg-card p-3 shadow-card-sm xl:hidden">
+          <SearchAndManualSection
+            searchRef={searchRef}
+            search={search}
+            onSearchChange={setSearch}
+            onSearchEnter={handleBarcodeOrSearchEnter}
+            onClearSearch={() => setSearch("")}
+            onAddManual={handleAddManual}
+            overlay={
+              filteredProducts.length > 0 ? (
+                <ProductSearchDropdown
+                  products={filteredProducts}
+                  onSelect={(product) => {
+                    handleProductClick(product);
+                    setSearch("");
+                  }}
+                />
+              ) : null
+            }
+          />
+        </div>
+
         {/* Cart */}
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-border bg-card xl:border-r xl:border-b-0">
-          <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
-            <h2 className="text-[13px] font-bold tracking-tight">
-              Cart{" "}
-              <span className="font-medium text-muted-foreground">
-                ({cart.items.length})
-              </span>
-            </h2>
+        <section className="relative flex min-h-0 min-w-0 flex-1 flex-col xl:w-[55%] xl:flex-none">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b border-border/60 bg-card px-4">
+            <h2 className="text-sm font-semibold text-foreground">Items</h2>
             {cart.items.length > 0 ? (
-              <Button type="button" variant="ghost" size="sm" onClick={clearCart}>
-                Clear all
-              </Button>
+              <button
+                type="button"
+                onClick={clearCart}
+                className="rounded-full bg-primary-light px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary-muted"
+              >
+                Clear Bill
+              </button>
             ) : null}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+
+          <div
+            className={cn(
+              "min-h-0 flex-1 overflow-y-auto p-3",
+              cart.items.length > 0 && "pb-20 xl:pb-3",
+            )}
+          >
             {cart.items.length === 0 ? (
-              <p className="py-12 text-center text-[13px] text-muted-foreground">
-                Add catalog or manual items to start a bill.
-              </p>
+              <div className="flex h-full min-h-48 items-center justify-center">
+                <p className="text-sm text-muted-foreground">
+                  No items added
+                </p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {cart.items.map((item) => (
@@ -439,283 +422,46 @@ export function BillingWorkspace({
               </div>
             )}
           </div>
-          <div className="flex shrink-0 items-center justify-between border-t border-border bg-muted/40 px-4 py-3">
-            <span className="text-[13px] font-medium text-muted-foreground">
+
+          {/* Desktop subtotal strip */}
+          <div className="hidden shrink-0 items-center justify-between border-t border-border/60 bg-card px-4 py-3 shadow-card-sm xl:flex">
+            <span className="text-sm font-medium text-muted-foreground">
               Subtotal
             </span>
-            <span className="text-base font-bold tabular-nums">
+            <span className="text-base font-bold tabular-nums text-primary">
               {formatCurrency(totals.subtotal)}
             </span>
           </div>
+
+          {/* Mobile sticky total */}
+          {cart.items.length > 0 ? (
+            <StickyBillingTotal
+              totalItems={totalItemQty}
+              totalAmount={totals.subtotal}
+              onClick={() => setPaymentSheetOpen(true)}
+              className="xl:hidden"
+            />
+          ) : null}
         </section>
 
-        {/* Payment */}
-        <section className="flex min-h-0 w-full flex-col overflow-y-auto bg-card xl:w-90 xl:shrink-0">
-          <div className="space-y-3.5 border-b border-border p-4">
-            <div className="space-y-2">
-              <Label>Customer</Label>
-              <Select
-                value={cart.customerId ?? "walkin"}
-                onValueChange={(value) => {
-                  if (value === "walkin") {
-                    patchCart({
-                      customerId: null,
-                      customerName: "",
-                      customerPhone: "",
-                    });
-                    return;
-                  }
-                  const customer = customers.find((row) => row.id === value);
-                  patchCart({
-                    customerId: value,
-                    customerName: customer?.name ?? "",
-                    customerPhone: customer?.phone ?? "",
-                  });
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Walk-in" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="walkin">Walk-in</SelectItem>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name} · {customer.phone}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!cart.customerId ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    placeholder="Name"
-                    value={cart.customerName}
-                    onChange={(event) =>
-                      patchCart({ customerName: event.target.value })
-                    }
-                  />
-                  <Input
-                    placeholder="Phone"
-                    value={cart.customerPhone}
-                    onChange={(event) =>
-                      patchCart({ customerPhone: event.target.value })
-                    }
-                  />
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="space-y-3.5 border-b border-border p-4">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label>Other items ₹</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={cart.otherItemsAmount}
-                  onChange={(event) =>
-                    patchCart({
-                      otherItemsAmount: Number(event.target.value || 0),
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Discount</Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={cart.discountType ?? "none"}
-                    onValueChange={(value) =>
-                      patchCart({
-                        discountType:
-                          value === "none"
-                            ? null
-                            : (value as "AMOUNT" | "PERCENT"),
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-20 shrink-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="AMOUNT">₹</SelectItem>
-                      <SelectItem value="PERCENT">%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={cart.discountValue}
-                    onChange={(event) =>
-                      patchCart({
-                        discountValue: Number(event.target.value || 0),
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3.5 border-b border-border p-4">
-            <div className="space-y-1.5">
-              <Label>Payment mode</Label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(["Cash", "UPI", "Card", "Mixed"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => patchCart({ paymentMode: mode })}
-                    className={cn(
-                      "rounded-lg border border-border px-1 py-2 text-center text-[12px] font-medium transition-colors",
-                      cart.paymentMode === mode
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "bg-card hover:bg-muted/50",
-                    )}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {cart.paymentMode === "Mixed" ? (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <Label>Cash ₹</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={cart.mixedCashAmount}
-                    onChange={(event) =>
-                      patchCart({
-                        mixedCashAmount: Number(event.target.value || 0),
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>UPI ₹</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={cart.mixedUpiAmount}
-                    onChange={(event) =>
-                      patchCart({
-                        mixedUpiAmount: Number(event.target.value || 0),
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            <div className="space-y-1.5">
-              <Label>Received ₹</Label>
-              <Input
-                type="number"
-                min={0}
-                value={cart.receivedAmount}
-                onChange={(event) =>
-                  patchCart({ receivedAmount: Number(event.target.value || 0) })
-                }
-              />
-            </div>
-
-            {totals.remainingAmount > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleReceiveRemaining}
-                >
-                  Receive {formatCurrency(totals.remainingAmount)}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleWaiveRemaining}
-                >
-                  Give {formatCurrency(totals.remainingAmount)} discount
-                </Button>
-              </div>
-            ) : null}
-
-            <div className="space-y-1.5">
-              <Label>
-                Account
-                {cart.receivedAmount > 0 ? "" : " (optional if unpaid)"}
-              </Label>
-              <Select
-                value={cart.selectedAccountId || undefined}
-                onValueChange={(value) =>
-                  patchCart({ selectedAccountId: value })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="mt-auto space-y-3 p-4">
-            <div className="space-y-1.5 rounded-lg bg-muted/40 p-3 text-[13px]">
-              <div className="flex justify-between">
-                <span className="font-medium">Total payable</span>
-                <span className="font-bold tabular-nums">
-                  {formatCurrency(totals.totalPayable)}
-                </span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Change</span>
-                <span className="tabular-nums">
-                  {formatCurrency(totals.changeAmount)}
-                </span>
-              </div>
-              {totals.remainingAmount > 0 ? (
-                <div className="flex justify-between text-warning">
-                  <span>Remaining</span>
-                  <span className="tabular-nums">
-                    {formatCurrency(totals.remainingAmount)}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-
-            <Button
-              type="button"
-              className="h-11 w-full"
-              disabled={isSaving || !canSave}
-              onClick={handleSave}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                "Save bill"
-              )}
-            </Button>
-            <p className="text-center text-[11px] text-muted-foreground">
-              Ctrl+Enter save · / focus search · Enter adds barcode
-            </p>
-          </div>
+        {/* Payment — desktop */}
+        <section className="hidden min-h-0 shrink-0 flex-col overflow-y-auto border-l border-border/60 bg-card shadow-card-sm xl:flex xl:w-[25%]">
+          {paymentPanel}
         </section>
       </div>
+
+      {/* Payment — mobile sheet */}
+      <Sheet open={paymentSheetOpen} onOpenChange={setPaymentSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[92dvh] overflow-y-auto rounded-t-2xl p-0"
+        >
+          <SheetHeader className="border-b border-border/60 px-4 py-3">
+            <SheetTitle>Payment</SheetTitle>
+          </SheetHeader>
+          <div className="overflow-y-auto">{paymentPanel}</div>
+        </SheetContent>
+      </Sheet>
 
       {/* Batch picker */}
       <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
@@ -730,11 +476,12 @@ export function BillingWorkspace({
                 type="button"
                 onClick={() => setSelectedBatchId(batch.id)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left",
-                  selectedBatchId === batch.id && "border-primary bg-muted",
+                  "flex w-full items-center justify-between rounded-xl border border-border px-3 py-2.5 text-left transition-colors",
+                  selectedBatchId === batch.id &&
+                    "border-primary bg-primary-light/50",
                 )}
               >
-                <span>{batch.name}</span>
+                <span className="text-sm font-medium">{batch.name}</span>
                 <span className="text-sm text-muted-foreground">
                   {batch.quantity_remaining} left ·{" "}
                   {formatCurrency(batch.selling_price)}
@@ -755,55 +502,6 @@ export function BillingWorkspace({
                 setPendingProduct(null);
               }}
             >
-              Add to cart
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Manual item */}
-      <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add manual item</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Name</Label>
-              <Input
-                value={manualName}
-                onChange={(event) => setManualName(event.target.value)}
-                placeholder="Service / custom item"
-                autoFocus
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label>Price ₹</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={manualPrice}
-                  onChange={(event) => setManualPrice(event.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Qty</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={manualQty}
-                  onChange={(event) => setManualQty(event.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setManualDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleAddManual}>
               Add to cart
             </Button>
           </DialogFooter>
@@ -853,6 +551,739 @@ export function BillingWorkspace({
   );
 }
 
+function SearchAndManualSection({
+  searchRef,
+  search,
+  onSearchChange,
+  onSearchEnter,
+  onClearSearch,
+  onAddManual,
+  overlay,
+}: {
+  searchRef: React.RefObject<HTMLInputElement | null>;
+  search: string;
+  onSearchChange: (value: string) => void;
+  onSearchEnter: () => void;
+  onClearSearch: () => void;
+  onAddManual: (name: string, price: number) => void;
+  overlay: ReactNode;
+}) {
+  return (
+    <div className="space-y-2 p-3">
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          ref={searchRef}
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              onSearchEnter();
+            }
+          }}
+          placeholder="Search product/scan barcode"
+          className="h-11 pl-9 pr-9"
+          autoFocus
+        />
+        {search ? (
+          <button
+            type="button"
+            onClick={onClearSearch}
+            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="size-4" />
+          </button>
+        ) : null}
+        {overlay ? (
+          <div className="absolute top-full right-0 left-0 z-30 mt-1">
+            {overlay}
+          </div>
+        ) : null}
+      </div>
+      <ManualInlineAddRow onAdd={onAddManual} />
+    </div>
+  );
+}
+
+function ManualInlineAddRow({
+  onAdd,
+}: {
+  onAdd: (name: string, price: number) => void;
+}) {
+  const [name, setName] = useState("");
+  const [priceText, setPriceText] = useState("");
+
+  const price = Number(priceText) || 0;
+  const canAdd = name.trim().length > 0 && price > 0;
+
+  const tryAdd = () => {
+    if (!canAdd) return;
+    onAdd(name.trim(), price);
+    setName("");
+    setPriceText("");
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder="e.g. Custom service, packing charge"
+        className="h-11 min-w-0 flex-1"
+        onKeyDown={(event) => {
+          if (event.key === "Enter") tryAdd();
+        }}
+      />
+      <Input
+        value={priceText}
+        onChange={(event) => {
+          const filtered = event.target.value.replace(/[^\d.]/g, "");
+          const parts = filtered.split(".");
+          const sanitized =
+            parts.length > 2
+              ? `${parts[0]}.${parts.slice(1).join("")}`
+              : filtered;
+          setPriceText(sanitized);
+        }}
+        placeholder="0.00"
+        inputMode="decimal"
+        className="h-11 w-20 shrink-0"
+        onKeyDown={(event) => {
+          if (event.key === "Enter") tryAdd();
+        }}
+      />
+      <button
+        type="button"
+        disabled={!canAdd}
+        onClick={tryAdd}
+        className={cn(
+          "flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors",
+          canAdd
+            ? "bg-primary/85 text-primary-foreground shadow-primary hover:bg-primary"
+            : "border border-primary/20 bg-primary-light text-primary/40",
+        )}
+        aria-label="Add manual item"
+      >
+        <Plus className="size-5" />
+      </button>
+    </div>
+  );
+}
+
+function ProductSearchDropdown({
+  products,
+  onSelect,
+}: {
+  products: BillingProduct[];
+  onSelect: (product: BillingProduct) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-primary/20 bg-card shadow-card">
+      <ul className="max-h-72 overflow-y-auto">
+        {products.map((product, index) => (
+          <li key={product.id}>
+            <button
+              type="button"
+              onClick={() => onSelect(product)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+            >
+              <span className="min-w-0 truncate text-sm font-medium">
+                {product.name}
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-primary tabular-nums">
+                {formatCurrency(product.selling_price)}
+              </span>
+            </button>
+            {index < products.length - 1 ? (
+              <div className="mx-4 border-t border-border/60" />
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CatalogProductList({
+  products,
+  onProductClick,
+}: {
+  products: BillingProduct[];
+  onProductClick: (product: BillingProduct) => void;
+}) {
+  const sorted = useMemo(
+    () =>
+      [...products]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 80),
+    [products],
+  );
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      {sorted.length === 0 ? (
+        <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+          No products in catalog
+        </p>
+      ) : (
+        <div className="space-y-1">
+          {sorted.map((product) => (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => onProductClick(product)}
+              className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-primary-light/40"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{product.name}</p>
+                <p
+                  className={cn(
+                    "text-xs tabular-nums",
+                    product.stock_quantity <= 0
+                      ? "text-destructive"
+                      : product.stock_quantity <= 5
+                        ? "text-warning"
+                        : "text-muted-foreground",
+                  )}
+                >
+                  Stock {product.stock_quantity}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-semibold text-primary tabular-nums">
+                {formatCurrency(product.selling_price)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StickyBillingTotal({
+  totalItems,
+  totalAmount,
+  onClick,
+  className,
+}: {
+  totalItems: number;
+  totalAmount: number;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "absolute right-0 bottom-0 left-0 flex items-center justify-between rounded-t-2xl border-t border-border/60 bg-card px-5 py-3.5 shadow-card-lg transition-colors hover:bg-muted/30",
+        className,
+      )}
+    >
+      <span className="text-sm font-medium text-foreground">
+        Items: {totalItems}
+      </span>
+      <span className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-primary">Total:</span>
+        <span className="text-base font-bold text-primary tabular-nums">
+          {formatCurrency(totalAmount)}
+        </span>
+        <ArrowRight className="size-5 text-primary" />
+      </span>
+    </button>
+  );
+}
+
+type CartState = ReturnType<typeof useBillingCart>["cart"];
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
+function sanitizeDecimalInput(raw: string): string {
+  const filtered = raw.replace(/[^\d.]/g, "");
+  const parts = filtered.split(".");
+  return parts.length > 2 ? `${parts[0]}.${parts.slice(1).join("")}` : filtered;
+}
+
+function DecimalInput({
+  value,
+  onValueChange,
+  placeholder = "0.00",
+  className,
+  readOnly,
+}: {
+  value: number;
+  onValueChange: (value: number) => void;
+  placeholder?: string;
+  className?: string;
+  readOnly?: boolean;
+}) {
+  const [text, setText] = useState(value > 0 ? String(value) : "");
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (isFocusedRef.current) return;
+    setText(value > 0 ? String(value) : "");
+  }, [value]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      readOnly={readOnly}
+      placeholder={placeholder}
+      value={text}
+      onFocus={() => {
+        isFocusedRef.current = true;
+      }}
+      onBlur={() => {
+        isFocusedRef.current = false;
+        if (value <= 0) setText("");
+      }}
+      onChange={(event) => {
+        const sanitized = sanitizeDecimalInput(event.target.value);
+        setText(sanitized);
+        onValueChange(Number(sanitized) || 0);
+      }}
+      className={className}
+    />
+  );
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-[13px] font-medium text-muted-foreground">{children}</p>
+  );
+}
+
+function CustomerDetailsFields({
+  customers,
+  customerId,
+  customerName,
+  customerPhone,
+  onPatch,
+}: {
+  customers: CustomerRow[];
+  customerId: string | null;
+  customerName: string;
+  customerPhone: string;
+  onPatch: ReturnType<typeof useBillingCart>["patchCart"];
+}) {
+  const [phoneFocused, setPhoneFocused] = useState(false);
+  const [nameFocused, setNameFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+
+  const selectedCustomer = useMemo(
+    () => customers.find((customer) => customer.id === customerId) ?? null,
+    [customers, customerId],
+  );
+
+  const searchResults = useMemo(() => {
+    const query = debouncedQuery.trim().toLowerCase();
+    if (!query) return [];
+    return customers
+      .filter(
+        (customer) =>
+          customer.name.toLowerCase().includes(query) ||
+          customer.phone.includes(query),
+      )
+      .slice(0, 8);
+  }, [customers, debouncedQuery]);
+
+  const showPhoneDropdown = phoneFocused && searchResults.length > 0;
+  const showNameDropdown = nameFocused && searchResults.length > 0;
+
+  const selectCustomer = (customer: CustomerRow) => {
+    onPatch({
+      customerId: customer.id,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+    });
+    setSearchQuery("");
+    setPhoneFocused(false);
+    setNameFocused(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <SectionLabel>Customer Details</SectionLabel>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="relative">
+          <Label className="text-xs text-muted-foreground">Phone</Label>
+          <Input
+            value={customerPhone}
+            onChange={(event) => {
+              const sanitized = event.target.value.replace(/\D/g, "").slice(0, 10);
+              onPatch({ customerPhone: sanitized, customerId: null });
+              setSearchQuery(sanitized);
+            }}
+            onFocus={() => {
+              setPhoneFocused(true);
+              setNameFocused(false);
+              setSearchQuery(customerPhone);
+            }}
+            onBlur={() => {
+              window.setTimeout(() => setPhoneFocused(false), 150);
+            }}
+            placeholder="Phone"
+            inputMode="numeric"
+            className="mt-1"
+          />
+          {showPhoneDropdown ? (
+            <CustomerSuggestionList
+              customers={searchResults}
+              selectedCustomerId={customerId}
+              onSelect={selectCustomer}
+            />
+          ) : null}
+        </div>
+
+        <div className="relative">
+          <Label className="text-xs text-muted-foreground">Name</Label>
+          <Input
+            value={customerName}
+            onChange={(event) => {
+              onPatch({ customerName: event.target.value, customerId: null });
+              setSearchQuery(event.target.value);
+            }}
+            onFocus={() => {
+              setNameFocused(true);
+              setPhoneFocused(false);
+              setSearchQuery(customerName);
+            }}
+            onBlur={() => {
+              window.setTimeout(() => setNameFocused(false), 150);
+            }}
+            placeholder="Name"
+            className="mt-1"
+          />
+          {showNameDropdown ? (
+            <CustomerSuggestionList
+              customers={searchResults}
+              selectedCustomerId={customerId}
+              onSelect={selectCustomer}
+            />
+          ) : null}
+        </div>
+      </div>
+
+      {selectedCustomer ? (
+        <p className="text-[11px] text-muted-foreground">
+          {selectedCustomer.phone === customerPhone &&
+          selectedCustomer.name !== customerName
+            ? "This will update the selected customer's name."
+            : selectedCustomer.phone !== customerPhone && customerPhone
+              ? "Phone changed, this will be treated as another customer."
+              : null}
+        </p>
+      ) : customerName || customerPhone ? (
+        <p className="text-[11px] text-muted-foreground">Walk-in customer</p>
+      ) : null}
+    </div>
+  );
+}
+
+function CustomerSuggestionList({
+  customers,
+  selectedCustomerId,
+  onSelect,
+}: {
+  customers: CustomerRow[];
+  selectedCustomerId: string | null;
+  onSelect: (customer: CustomerRow) => void;
+}) {
+  return (
+    <div className="absolute top-full right-0 left-0 z-40 mt-1 overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+      <ul className="max-h-56 overflow-y-auto">
+        {customers.map((customer, index) => (
+          <li key={customer.id}>
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onSelect(customer)}
+              className={cn(
+                "flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/50",
+                selectedCustomerId === customer.id && "bg-primary-light/60",
+              )}
+            >
+              <span className="text-sm font-medium">{customer.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {customer.phone}
+              </span>
+            </button>
+            {index < customers.length - 1 ? (
+              <div className="mx-3 border-t border-border/60" />
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function DiscountTypeToggle({
+  value,
+  onChange,
+}: {
+  value: "AMOUNT" | "PERCENT";
+  onChange: (value: "AMOUNT" | "PERCENT") => void;
+}) {
+  return (
+    <div className="flex shrink-0 rounded-xl border border-border/60 bg-surface-variant p-0.5">
+      {(
+        [
+          { type: "AMOUNT" as const, icon: IndianRupee, label: "Discount amount" },
+          { type: "PERCENT" as const, icon: Percent, label: "Discount percentage" },
+        ] as const
+      ).map(({ type, icon: Icon, label }) => {
+        const selected = value === type;
+        return (
+          <button
+            key={type}
+            type="button"
+            title={label}
+            onClick={() => onChange(type)}
+            className={cn(
+              "flex size-9 items-center justify-center rounded-lg transition-colors",
+              selected
+                ? "border border-primary/20 bg-primary-light text-primary"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Icon className="size-4" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PaymentPanel({
+  cart,
+  customers,
+  accounts,
+  totals,
+  canSave,
+  isSaving,
+  onPatch,
+  onSave,
+}: {
+  cart: CartState;
+  customers: CustomerRow[];
+  accounts: AccountRow[];
+  totals: BillingTotals;
+  canSave: boolean;
+  isSaving: boolean;
+  onPatch: ReturnType<typeof useBillingCart>["patchCart"];
+  onSave: () => void;
+}) {
+  const discountType = cart.discountType ?? "AMOUNT";
+  const billTotal = totals.subtotal + totals.otherItemsAmount;
+
+  useEffect(() => {
+    if (cart.paymentMode === "Mixed") {
+      onPatch({
+        receivedAmount: Number(
+          (cart.mixedCashAmount + cart.mixedUpiAmount).toFixed(2),
+        ),
+      });
+    }
+  }, [cart.paymentMode, cart.mixedCashAmount, cart.mixedUpiAmount, onPatch]);
+
+  return (
+    <>
+      <div className="space-y-3.5 border-b border-border/60 p-4">
+        <CustomerDetailsFields
+          customers={customers}
+          customerId={cart.customerId}
+          customerName={cart.customerName}
+          customerPhone={cart.customerPhone}
+          onPatch={onPatch}
+        />
+      </div>
+
+      <div className="space-y-3.5 border-b border-border/60 p-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Account</Label>
+          <Select
+            value={cart.selectedAccountId || undefined}
+            onValueChange={(value) => onPatch({ selectedAccountId: value })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select account" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  {account.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-3.5 border-b border-border/60 p-4">
+        <SectionLabel>Payment Mode</SectionLabel>
+        <div className="grid grid-cols-4 gap-1.5">
+          {(
+            [
+              { mode: "Cash" as const, icon: Wallet },
+              { mode: "UPI" as const, icon: Smartphone },
+              { mode: "Card" as const, icon: CreditCard },
+              { mode: "Mixed" as const, icon: Split },
+            ] as const
+          ).map(({ mode, icon: Icon }) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onPatch({ paymentMode: mode })}
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-xl border px-1 py-2 text-center text-[11px] font-medium transition-colors",
+                cart.paymentMode === mode
+                  ? "border-primary bg-primary-light text-primary shadow-card-sm"
+                  : "border-border bg-card hover:bg-muted/50",
+              )}
+            >
+              <Icon className="size-4" />
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        {cart.paymentMode === "Mixed" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Cash</Label>
+              <DecimalInput
+                value={cart.mixedCashAmount}
+                onValueChange={(value) => onPatch({ mixedCashAmount: value })}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">UPI</Label>
+              <DecimalInput
+                value={cart.mixedUpiAmount}
+                onValueChange={(value) => onPatch({ mixedUpiAmount: value })}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="space-y-3.5 border-b border-border/60 p-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Other Items Price
+          </Label>
+          <DecimalInput
+            value={cart.otherItemsAmount}
+            onValueChange={(value) => onPatch({ otherItemsAmount: value })}
+            placeholder="0.00"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <SectionLabel>Discount</SectionLabel>
+          <div className="flex gap-2">
+            <DecimalInput
+              value={cart.discountValue}
+              onValueChange={(value) => onPatch({ discountValue: value })}
+              placeholder={discountType === "PERCENT" ? "0.0" : "0.00"}
+              className="min-w-0 flex-1"
+            />
+            <DiscountTypeToggle
+              value={discountType}
+              onChange={(value) => onPatch({ discountType: value })}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <SectionLabel>Received Amount</SectionLabel>
+          <DecimalInput
+            value={cart.receivedAmount}
+            onValueChange={(value) => onPatch({ receivedAmount: value })}
+            placeholder={
+              cart.paymentMode === "Mixed"
+                ? "Auto calculated"
+                : "Enter received amount"
+            }
+            readOnly={cart.paymentMode === "Mixed"}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-3 p-4">
+        <div className="space-y-2 rounded-xl bg-surface-variant p-3.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Bill Total</span>
+            <span className="tabular-nums">{formatCurrency(billTotal)}</span>
+          </div>
+          <div className="flex justify-between text-primary">
+            <span>Discount</span>
+            <span className="tabular-nums">
+              −{formatCurrency(totals.discountAmount)}
+            </span>
+          </div>
+          <div className="flex justify-between border-t border-border/60 pt-2">
+            <span className="font-semibold">Total Payable</span>
+            <span className="font-bold text-primary tabular-nums">
+              {formatCurrency(totals.totalPayable)}
+            </span>
+          </div>
+          {totals.remainingAmount > 0 ? (
+            <div className="flex justify-between text-primary">
+              <span>Remaining</span>
+              <span className="tabular-nums">
+                {formatCurrency(totals.remainingAmount)}
+              </span>
+            </div>
+          ) : totals.changeAmount > 0 ? (
+            <p className="text-center text-sm font-medium text-success">
+              Give back to customer {formatCurrency(totals.changeAmount)}
+            </p>
+          ) : totals.receivedAmount >= totals.totalPayable &&
+            totals.totalPayable > 0 ? (
+            <p className="text-center text-sm font-medium text-success">
+              Payment settled
+            </p>
+          ) : null}
+        </div>
+
+        <Button
+          type="button"
+          className="h-11 w-full"
+          disabled={isSaving || !canSave}
+          onClick={onSave}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="animate-spin" />
+              Saving…
+            </>
+          ) : (
+            "Generate Bill"
+          )}
+        </Button>
+      </div>
+    </>
+  );
+}
+
 function CartRow({
   item,
   onQtyChange,
@@ -862,54 +1293,86 @@ function CartRow({
   onQtyChange: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
 }) {
+  const [qtyText, setQtyText] = useState(String(item.quantity));
+
+  useEffect(() => {
+    setQtyText(String(item.quantity));
+  }, [item.quantity]);
+
+  const subtitle = item.isManual
+    ? "Manual item"
+    : item.batchName
+      ? `Batch ${item.batchName}`
+      : item.barcode ?? "";
+
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium">
+    <div className="rounded-2xl border border-border/60 bg-card p-3 shadow-card-sm">
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold">
           {item.productName}
-          {item.isManual ? (
-            <span className="ml-1 text-[10px] font-semibold text-muted-foreground uppercase">
-              Manual
-            </span>
-          ) : null}
         </p>
-        <p className="text-[11px] text-muted-foreground">
-          {formatCurrency(item.unitPrice)}
-          {item.batchName ? ` · ${item.batchName}` : ""}
-        </p>
-      </div>
-      <div className="flex items-center gap-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          onClick={() => onQtyChange(item.id, item.quantity - 1)}
-        >
-          <Minus />
-        </Button>
-        <span className="w-8 text-center text-[13px] tabular-nums">
-          {item.quantity}
+        <span className="shrink-0 text-sm font-semibold text-primary tabular-nums">
+          {formatCurrency(item.unitPrice * item.quantity)}
         </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          onClick={() => onQtyChange(item.id, item.quantity + 1)}
-        >
-          <Plus />
-        </Button>
       </div>
-      <span className="w-20 shrink-0 text-[13px] font-semibold tabular-nums">
-        {formatCurrency(item.unitPrice * item.quantity)}
-      </span>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => onRemove(item.id)}
-      >
-        <Trash2 />
-      </Button>
+
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          {subtitle ? (
+            <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+          ) : null}
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {formatCurrency(item.unitPrice)}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (item.quantity <= 1) {
+                onRemove(item.id);
+                return;
+              }
+              onQtyChange(item.id, item.quantity - 1);
+            }}
+            className="flex size-7 items-center justify-center rounded-lg bg-primary/80 text-primary-foreground transition-colors hover:bg-primary"
+            aria-label="Decrease quantity"
+          >
+            <Minus className="size-4" />
+          </button>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={qtyText}
+            onChange={(event) => {
+              const digits = event.target.value.replace(/\D/g, "");
+              setQtyText(digits);
+              if (!digits || digits === "0") {
+                onRemove(item.id);
+                return;
+              }
+              const parsed = Number(digits);
+              if (parsed > 0) onQtyChange(item.id, parsed);
+            }}
+            onBlur={() => {
+              if (!qtyText || qtyText === "0") {
+                onRemove(item.id);
+              }
+            }}
+            className="h-7 w-9 rounded-md border border-primary/20 bg-card text-center text-sm font-medium text-primary tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            aria-label="Quantity"
+          />
+          <button
+            type="button"
+            onClick={() => onQtyChange(item.id, item.quantity + 1)}
+            className="flex size-7 items-center justify-center rounded-lg bg-primary/80 text-primary-foreground transition-colors hover:bg-primary"
+            aria-label="Increase quantity"
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

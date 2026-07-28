@@ -26,9 +26,9 @@ type TopRankedTableProps = {
 };
 
 const RANK_STYLES = [
-  "bg-amber-50",
-  "bg-slate-50",
-  "bg-rose-50",
+  "bg-rank-1",
+  "bg-rank-2 text-rank-2-foreground",
+  "bg-rank-3",
 ];
 
 export function TopRankedTable({

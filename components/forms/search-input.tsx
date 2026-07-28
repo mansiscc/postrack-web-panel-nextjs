@@ -49,7 +49,7 @@ export function SearchInput({
         value={internal}
         onChange={(event) => setInternal(event.target.value)}
         placeholder={placeholder}
-        className="h-9.5 pr-8 pl-8 text-[13px]"
+        className="h-10.5 pr-8 pl-8 text-[13px]"
         aria-label={placeholder}
       />
       {internal ? (

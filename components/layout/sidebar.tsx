@@ -39,7 +39,7 @@ const ROLE_BADGE: Record<
   SessionUser["role"],
   { label: string; className: string }
 > = {
-  Admin: { label: "Admin", className: "bg-primary/10 text-primary" },
+  Admin: { label: "Admin", className: "bg-primary-muted text-primary" },
   Manager: { label: "Manager", className: "bg-info/15 text-info" },
   Staff: { label: "Staff", className: "bg-muted text-muted-foreground" },
 };
@@ -73,15 +73,15 @@ function NavLink({
       href={href}
       onClick={onNavigate}
       className={cn(
-        "relative flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors duration-150",
+        "relative flex min-h-9 items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium leading-normal transition-colors duration-150",
         active
-          ? "bg-accent text-primary before:absolute before:top-1 before:bottom-1 before:left-0 before:w-0.75 before:rounded-full before:bg-primary"
-          : "text-foreground hover:bg-accent/80",
+          ? "bg-primary-muted text-primary before:absolute before:top-1 before:bottom-1 before:left-0 before:w-0.75 before:rounded-full before:bg-primary"
+          : "text-foreground hover:bg-primary-muted/70",
         collapsed && "justify-center px-0",
       )}
     >
       <Icon className="size-5 shrink-0" strokeWidth={1.75} />
-      {!collapsed ? <span className="truncate">{label}</span> : null}
+      {!collapsed ? <span className="truncate leading-normal">{label}</span> : null}
     </Link>
   );
 
@@ -136,36 +136,57 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
+  const isCollapsedDesktop = collapsed && isDesktop;
+
   const sidebarContent = (
     <div className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
       <div
         className={cn(
           "flex h-14 shrink-0 items-center border-b border-sidebar-border px-4",
-          collapsed && "justify-center px-2",
+          isCollapsedDesktop && "justify-center px-2",
         )}
       >
-        <div className={cn("min-w-0 flex-1", collapsed && "flex-none")}>
-          <p className="text-[13px] font-bold tracking-tight text-primary">
-            POSTrack
-          </p>
-          {!collapsed ? (
-            <p className="truncate text-[11px] text-muted-foreground">
-              {user.companyName}
-            </p>
-          ) : null}
-        </div>
-        {isDesktop ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className={cn("shrink-0", collapsed && "mt-0")}
-            onClick={() => setCollapsed((value) => !value)}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <ChevronRight /> : <ChevronLeft />}
-          </Button>
-        ) : null}
+        {isCollapsedDesktop ? (
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setCollapsed(false)}
+                aria-label="Expand sidebar"
+                className="group relative flex size-9 items-center justify-center rounded-md hover:bg-accent/80"
+              >
+                <span className="text-[13px] font-bold tracking-tight text-primary group-hover:invisible">
+                  PS
+                </span>
+                <ChevronRight className="pointer-events-none absolute size-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Expand sidebar</TooltipContent>
+          </Tooltip>
+        ) : (
+          <>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold leading-normal tracking-tight text-primary">
+                POSTrack
+              </p>
+              <p className="truncate text-[11px] leading-normal text-muted-foreground">
+                {user.companyName}
+              </p>
+            </div>
+            {isDesktop ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+                onClick={() => setCollapsed(true)}
+                aria-label="Collapse sidebar"
+              >
+                <ChevronLeft />
+              </Button>
+            ) : null}
+          </>
+        )}
       </div>
 
       <nav
@@ -174,8 +195,8 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
       >
         {navGroups.map((group) => (
           <div key={group.label}>
-            {!collapsed ? (
-              <p className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            {!isCollapsedDesktop ? (
+              <p className="px-3 pb-1 text-[11px] font-semibold leading-normal tracking-wider text-muted-foreground uppercase">
                 {group.label}
               </p>
             ) : null}
@@ -187,7 +208,7 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
                   label={item.label}
                   icon={item.icon}
                   active={isActive(item.href)}
-                  collapsed={collapsed && isDesktop}
+                  collapsed={isCollapsedDesktop}
                   onNavigate={onMobileClose}
                 />
               ))}
@@ -196,30 +217,46 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="shrink-0 border-t border-sidebar-border bg-sidebar p-3">
-        <div
-          className={cn(
-            "flex items-center gap-1",
-            collapsed && isDesktop && "flex-col",
-          )}
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+      <div
+        className={cn(
+          "shrink-0 border-t border-sidebar-border bg-sidebar",
+          isCollapsedDesktop ? "p-2" : "p-3",
+        )}
+      >
+        {isCollapsedDesktop ? (
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
               <button
                 type="button"
-                className={cn(
-                  "flex min-w-0 flex-1 items-center gap-3 rounded-md p-2 text-left hover:bg-accent/80",
-                  collapsed && isDesktop && "flex-none justify-center",
-                )}
+                onClick={() => setLogoutConfirmOpen(true)}
+                aria-label="Log out"
+                className="group relative mx-auto flex size-9 items-center justify-center rounded-md hover:bg-accent/80"
               >
-                <Avatar className="size-8">
+                <Avatar className="size-8 group-hover:invisible">
                   <AvatarFallback className="bg-primary/10 text-xs text-primary">
                     {getInitials(user.fullName)}
                   </AvatarFallback>
                 </Avatar>
-                {!collapsed || !isDesktop ? (
+                <LogOut className="pointer-events-none absolute size-4 text-destructive opacity-0 group-hover:opacity-100" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Log out</TooltipContent>
+          </Tooltip>
+        ) : (
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-2 text-left hover:bg-accent/80"
+                >
+                  <Avatar className="size-8">
+                    <AvatarFallback className="bg-primary/10 text-xs text-primary">
+                      {getInitials(user.fullName)}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
+                    <p className="truncate text-sm font-medium leading-normal">
                       {user.fullName}
                     </p>
                     <Badge
@@ -229,50 +266,32 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
                       {roleBadge.label}
                     </Badge>
                   </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">{user.fullName}</p>
+                    <p className="text-xs font-normal text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {canAccessModule(
+                  user.role,
+                  user.permissions,
+                  "business-profile",
+                ) ? (
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/business-profile">
+                      Business profile
+                    </Link>
+                  </DropdownMenuItem>
                 ) : null}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">{user.fullName}</p>
-                  <p className="text-xs font-normal text-muted-foreground">
-                    {user.email}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {canAccessModule(
-                user.role,
-                user.permissions,
-                "business-profile",
-              ) ? (
-                <DropdownMenuItem asChild>
-                  <Link href="/settings/business-profile">
-                    Business profile
-                  </Link>
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {collapsed && isDesktop ? (
-            <Tooltip delayDuration={200}>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => setLogoutConfirmOpen(true)}
-                  aria-label="Log out"
-                >
-                  <LogOut />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Log out</TooltipContent>
-            </Tooltip>
-          ) : (
             <Button
               type="button"
               variant="ghost"
@@ -283,8 +302,8 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
             >
               <LogOut />
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
@@ -314,7 +333,7 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
         />
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar shadow-lg transition-transform duration-300 ease-in-out lg:hidden",
+            "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-sidebar-border/80 bg-sidebar shadow-overlay transition-transform duration-300 ease-in-out lg:hidden",
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
@@ -327,7 +346,7 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "hidden h-full shrink-0 flex-col border-r border-sidebar-border transition-[width] duration-300 ease-in-out lg:flex",
+        "hidden h-full shrink-0 flex-col border-r border-sidebar-border/80 bg-sidebar shadow-card-sm transition-[width] duration-300 ease-in-out lg:flex",
         collapsed ? "w-16" : "w-64",
       )}
     >

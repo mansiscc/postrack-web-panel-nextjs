@@ -7,7 +7,7 @@ const PAGE_TITLES: Record<string, string> = {
   suppliers: "Supplier Management",
   purchases: "Purchase Management",
   billing: "POS Billing",
-  sales: "Sales / Bill History",
+  sales: "Sales History",
   customers: "Customer Management",
   users: "User Management",
   "activity-log": "Activity Log",
@@ -36,6 +36,15 @@ export function getPageTitle(pathname: string): string {
   if (segments[0] === "analytics" && segments[1]) {
     const analyticsTitle = ANALYTICS_PAGE_TITLES[segments[1]];
     if (analyticsTitle) return analyticsTitle;
+  }
+
+  if (segments[0] === "products" && segments[1]) {
+    return "Product Details";
+  }
+
+  if (segments[0] === "sales" && segments[1] && segments[1] !== "receipt") {
+    if (segments[2] === "receipt") return "Receipt";
+    return "Bill Details";
   }
 
   for (let i = segments.length - 1; i >= 0; i -= 1) {

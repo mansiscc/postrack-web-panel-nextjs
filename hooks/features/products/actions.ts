@@ -77,6 +77,7 @@ export async function updateProductAction(
     });
 
     revalidatePath("/products");
+    revalidatePath(`/products/${id}`);
     return actionSuccess(undefined);
   } catch (error) {
     if (error instanceof AppError) return actionError(error.message);
@@ -92,6 +93,7 @@ export async function toggleProductActiveAction(
     const user = await requireModuleAccess("products");
     await toggleProductActive(user, id, isActive);
     revalidatePath("/products");
+    revalidatePath(`/products/${id}`);
     return actionSuccess(undefined);
   } catch (error) {
     return actionError(getErrorMessage(error));
@@ -103,6 +105,7 @@ export async function deleteProductAction(id: string): Promise<ActionResult> {
     const user = await requireAdmin();
     await removeProduct(user, id);
     revalidatePath("/products");
+    revalidatePath(`/products/${id}`);
     return actionSuccess(undefined);
   } catch (error) {
     return actionError(getErrorMessage(error));
@@ -114,6 +117,7 @@ export async function restoreProductAction(id: string): Promise<ActionResult> {
     const user = await requireAdmin();
     await restoreProductRecord(user, id);
     revalidatePath("/products");
+    revalidatePath(`/products/${id}`);
     return actionSuccess(undefined);
   } catch (error) {
     return actionError(getErrorMessage(error));

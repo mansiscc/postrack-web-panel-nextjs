@@ -98,6 +98,24 @@ export async function processBillReturn(user: SessionUser, input: ReturnInput) {
     alreadyRefunded,
   });
 
+  // Resolve refund category before writing the return so we don't leave a
+  // stock/return row without its accounting entry (Android posts entry after
+  // return, but fails the whole use-case if category is missing).
+  let salesReturnCategoryId: string | null = null;
+  if (refundPayableNow > 0) {
+    salesReturnCategoryId = await getSalesReturnCategoryId(
+      supabase,
+      user.companyId,
+      { ensure: true, userId: user.id },
+    );
+    if (!salesReturnCategoryId) {
+      throw new AppError(
+        "Accounting category 'Sales Return' (expense) not found. Add it under Account Categories as type Expense.",
+        "NOT_FOUND",
+      );
+    }
+  }
+
   const billReturn = await createBillReturn(supabase, {
     company_id: user.companyId,
     bill_id: input.billId,
@@ -123,7 +141,7 @@ export async function processBillReturn(user: SessionUser, input: ReturnInput) {
     })),
   );
 
-  if (refundPayableNow > 0) {
+  if (refundPayableNow > 0 && salesReturnCategoryId) {
     const alreadyPosted = await existsEntryForSource(
       supabase,
       "bill_return",
@@ -132,23 +150,12 @@ export async function processBillReturn(user: SessionUser, input: ReturnInput) {
     );
 
     if (!alreadyPosted) {
-      const categoryId = await getSalesReturnCategoryId(
-        supabase,
-        user.companyId,
-      );
-      if (!categoryId) {
-        throw new AppError(
-          "Accounting category 'Sales Return' (expense) not found",
-          "NOT_FOUND",
-        );
-      }
-
       const billNumber = bill.bill_number?.trim() || null;
       await createBillEntry(supabase, {
         company_id: user.companyId,
         entry_type: "expense",
         account_id: input.refundAccountId,
-        category_id: categoryId,
+        category_id: salesReturnCategoryId,
         amount: refundPayableNow,
         entry_date: new Date().toISOString().slice(0, 10),
         remarks: billNumber

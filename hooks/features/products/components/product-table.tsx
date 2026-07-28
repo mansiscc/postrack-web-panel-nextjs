@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Package, Plus } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 import { useTableRefresh } from "@/hooks/use-table-refresh";
@@ -13,7 +14,6 @@ import {
   restoreProductAction,
   toggleProductActiveAction,
 } from "@/hooks/features/products/actions";
-import { ProductDetailSheet } from "@/hooks/features/products/components/product-detail-sheet";
 import { ProductFormSheet } from "@/hooks/features/products/components/product-form-sheet";
 import {
   getStockStatus,
@@ -26,7 +26,7 @@ import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
-import { StatusBadge } from "@/components/forms/status-badge";
+import { StatusBadge, ActiveStatusToggle } from "@/components/forms/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -35,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatNumber } from "@/utils/currency";
 
@@ -52,6 +51,8 @@ export function ProductTable({
   categories,
   canDelete,
 }: ProductTableProps) {
+  const router = useRouter();
+  const refresh = useTableRefresh();
   const [items, setItems] = useState(products);
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("all");
@@ -62,8 +63,6 @@ export function ProductTable({
     "all",
   );
   const [formOpen, setFormOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [selected, setSelected] = useState<ProductListItem | null>(null);
   const [editing, setEditing] = useState<ProductListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductListItem | null>(null);
   const [, startTransition] = useTransition();
@@ -91,8 +90,6 @@ export function ProductTable({
       return matchesSearch && matchesCategory && matchesStock && matchesStatus;
     });
   }, [items, search, categoryId, stock, status]);
-
-  const refresh = useTableRefresh();
 
   const handleToggle = (item: ProductListItem, isActive: boolean) => {
     startTransition(async () => {
@@ -202,7 +199,7 @@ export function ProductTable({
               className={cn(
                 "tabular-nums",
                 stockStatus === "out" && "text-destructive",
-                stockStatus === "low" && "text-amber-600",
+                stockStatus === "low" && "text-warning",
               )}
             >
               {formatNumber(row.original.stockQuantity)}
@@ -227,36 +224,15 @@ export function ProductTable({
       {
         accessorKey: "isActive",
         header: "Status",
-        cell: ({ row }) => (
-          <StatusBadge
-            status={
-              row.original.isDeleted
-                ? "inactive"
-                : row.original.isActive
-                  ? "active"
-                  : "inactive"
-            }
-            label={
-              row.original.isDeleted
-                ? "Deleted"
-                : row.original.isActive
-                  ? "Active"
-                  : "Inactive"
-            }
-          />
-        ),
-      },
-      {
-        id: "activeToggle",
-        header: "Active",
-        cell: ({ row }) => (
-          <Switch
-            checked={row.original.isActive}
-            disabled={row.original.isDeleted}
-            onCheckedChange={(checked) => handleToggle(row.original, checked)}
-            aria-label={`Toggle ${row.original.name}`}
-          />
-        ),
+        cell: ({ row }) =>
+          row.original.isDeleted ? (
+            <StatusBadge status="deleted" label="Deleted" showDot />
+          ) : (
+            <ActiveStatusToggle
+              isActive={row.original.isActive}
+              onToggle={(checked) => handleToggle(row.original, checked)}
+            />
+          ),
       },
       {
         id: "actions",
@@ -377,8 +353,7 @@ export function ProductTable({
           columns={columns}
           data={filtered}
           onRowClick={(product) => {
-            setSelected(product);
-            setDetailOpen(true);
+            router.push(`/products/${product.id}`);
           }}
         />
       )}
@@ -391,21 +366,11 @@ export function ProductTable({
         onSuccess={refresh}
       />
 
-      <ProductDetailSheet
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        product={selected}
-        onEdit={(product) => {
-          setEditing(product);
-          setFormOpen(true);
-        }}
-      />
-
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete product?"
-        description={`Soft-delete "${deleteTarget?.name}"? You can restore it later.`}
+        title="Delete Product?"
+        description="This product will be moved to Deleted. You can restore it later from the Deleted filter."
         confirmLabel="Delete"
         destructive
         onConfirm={handleDelete}

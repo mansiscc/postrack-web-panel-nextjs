@@ -24,6 +24,7 @@ export async function updateBusinessProfileAction(
     const data = parsed.data;
     await saveBusinessProfile(user, {
       businessName: data.businessName,
+      businessCategory: data.businessCategory || null,
       phone: data.phone || null,
       email: data.email || null,
       address: data.address || null,

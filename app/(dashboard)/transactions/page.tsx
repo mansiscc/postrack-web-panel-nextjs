@@ -8,7 +8,6 @@ import {
   getTransactionsList,
   getTransactionTotalsSummary,
 } from "@/services/transaction.service";
-import { PageHeader } from "@/components/layout/page-header";
 import { dateRangePresets } from "@/utils/date";
 
 type TransactionsPageProps = {
@@ -48,34 +47,28 @@ export default async function TransactionsPage({
   ].map((category) => ({ id: category.id, name: category.name }));
 
   return (
-    <>
-      <PageHeader
-        title="Transactions"
-        description="View income, expenses, and manual accounting entries."
-      />
-      <TransactionTable
-        transactions={rows.map(mapTransactionRow)}
-        totals={totals}
-        accounts={options.accounts.map((account) => ({
-          id: account.id,
-          name: account.name,
-        }))}
-        categories={categories}
-        incomeCategories={options.incomeCategories.map((category) => ({
-          id: category.id,
-          name: category.name,
-        }))}
-        expenseCategories={options.expenseCategories.map((category) => ({
-          id: category.id,
-          name: category.name,
-        }))}
-        canEditDelete={user.role === "Admin"}
-        canExport={user.role === "Admin" || user.role === "Manager"}
-        initialEntryType={entryType}
-        initialAccountId={accountId}
-        initialDateFrom={initialDateFrom}
-        initialDateTo={initialDateTo}
-      />
-    </>
+    <TransactionTable
+      transactions={rows.map(mapTransactionRow)}
+      totals={totals}
+      accounts={options.accounts.map((account) => ({
+        id: account.id,
+        name: account.name,
+      }))}
+      categories={categories}
+      incomeCategories={options.incomeCategories.map((category) => ({
+        id: category.id,
+        name: category.name,
+      }))}
+      expenseCategories={options.expenseCategories.map((category) => ({
+        id: category.id,
+        name: category.name,
+      }))}
+      canEditDelete={user.role === "Admin"}
+      canExport={user.role === "Admin" || user.role === "Manager"}
+      initialEntryType={entryType}
+      initialAccountId={accountId}
+      initialDateFrom={initialDateFrom}
+      initialDateTo={initialDateTo}
+    />
   );
 }

@@ -1,13 +1,10 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useMemo, useTransition } from "react";
 
-import { exportSalesListCsvAction } from "@/hooks/features/analytics/actions";
-import { BillDetailSheet } from "@/hooks/features/sales/components/bill-detail-sheet";
 import type { SalesListItem } from "@/hooks/features/sales/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
@@ -15,7 +12,12 @@ import { DataTablePagination } from "@/components/data-table/pagination";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
-import { StatusBadge } from "@/components/forms/status-badge";
+import {
+  StatusBadge,
+  billStatusLabel,
+  billStatusVariant,
+} from "@/components/forms/status-badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -23,12 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AccountRow } from "@/repositories/accounts.repository";
 import { formatCurrency } from "@/utils/currency";
-import { downloadCsv } from "@/utils/csv";
 import { formatDateTime } from "@/utils/date";
 import { buildQueryString, type SalesDateFilter } from "@/utils/url-query";
-import { Button } from "@/components/ui/button";
 
 type SalesFilters = {
   search: string;
@@ -43,9 +42,6 @@ type SalesTableProps = {
   page: number;
   pageSize: number;
   filters: SalesFilters;
-  canExport?: boolean;
-  accounts: AccountRow[];
-  defaultAccountId: string | null;
 };
 
 export function SalesTable({
@@ -54,17 +50,14 @@ export function SalesTable({
   page,
   pageSize,
   filters,
-  canExport = false,
-  accounts,
-  defaultAccountId,
 }: SalesTableProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
-  const [selected, setSelected] = useState<SalesListItem | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
 
-  const pushFilters = (patch: Partial<SalesFilters & { page: number; pageSize: number }>) => {
+  const pushFilters = (
+    patch: Partial<SalesFilters & { page: number; pageSize: number }>,
+  ) => {
     const next = {
       q: patch.search ?? filters.search,
       status: patch.status ?? filters.status,
@@ -89,6 +82,15 @@ export function SalesTable({
   const columns = useMemo<ColumnDef<SalesListItem>[]>(
     () => [
       {
+        accessorKey: "billNumber",
+        header: "Bill #",
+        cell: ({ row }) => (
+          <span className="font-mono text-[13px] font-semibold">
+            {row.original.billNumber ?? "—"}
+          </span>
+        ),
+      },
+      {
         accessorKey: "createdAt",
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Date" />
@@ -96,19 +98,31 @@ export function SalesTable({
         cell: ({ row }) => formatDateTime(row.original.createdAt),
       },
       {
-        accessorKey: "billNumber",
-        header: "Bill #",
+        accessorKey: "customerName",
+        header: "Customer",
         cell: ({ row }) => (
-          <span className="font-medium">{row.original.billNumber ?? "—"}</span>
+          <span className="font-medium">
+            {row.original.customerName || "Walk-in"}
+          </span>
         ),
       },
       {
-        accessorKey: "customerName",
-        header: "Customer",
+        accessorKey: "createdByName",
+        header: "Created by",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.createdByName?.trim() || "—"}
+          </span>
+        ),
       },
       {
         accessorKey: "paymentMode",
         header: "Payment",
+        cell: ({ row }) => (
+          <Badge className="bg-info-muted font-semibold text-info-accent">
+            {row.original.paymentMode}
+          </Badge>
+        ),
       },
       {
         accessorKey: "totalPayableAmount",
@@ -125,38 +139,23 @@ export function SalesTable({
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <StatusBadge status="active" label={row.original.status} />
+          <StatusBadge
+            status={billStatusVariant(row.original.status)}
+            label={billStatusLabel(row.original.status)}
+          />
         ),
       },
     ],
     [],
   );
 
-  const handleExport = async () => {
-    const result = await exportSalesListCsvAction();
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    downloadCsv(result.data.filename, result.data.csv);
-  };
-
   return (
     <>
-      <DataTableToolbar
-        actions={
-          canExport ? (
-            <Button type="button" variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
-          ) : undefined
-        }
-      >
+      <DataTableToolbar>
         <SearchInput
           value={filters.search}
           onChange={(value) => pushFilters({ search: value })}
-          placeholder="Search bill, customer, phone…"
+          placeholder="Bill no., customer, phone or cashier"
         />
         <Select
           value={filters.date}
@@ -199,11 +198,11 @@ export function SalesTable({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All status</SelectItem>
-            <SelectItem value="PAID">Paid</SelectItem>
-            <SelectItem value="PARTIALLY_PAID">Partially paid</SelectItem>
-            <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="RETURNED">Returned</SelectItem>
-            <SelectItem value="PARTIAL_RETURN">Partial return</SelectItem>
+            <SelectItem value="PAID">PAID</SelectItem>
+            <SelectItem value="PARTIALLY_PAID">PARTIAL</SelectItem>
+            <SelectItem value="PENDING">PENDING</SelectItem>
+            <SelectItem value="RETURNED">RETURNED</SelectItem>
+            <SelectItem value="PARTIAL_RETURN">PARTIAL RETURN</SelectItem>
           </SelectContent>
         </Select>
       </DataTableToolbar>
@@ -211,8 +210,15 @@ export function SalesTable({
       {sales.length === 0 ? (
         <EmptyState
           icon={Receipt}
-          title="No sales found"
-          description="Completed bills will appear here after POS billing."
+          title="No bills found"
+          description={
+            filters.search ||
+            filters.status !== "all" ||
+            filters.paymentMode !== "all" ||
+            filters.date !== "all"
+              ? "No bills match your current search or filters."
+              : "Bills you create will appear here."
+          }
         />
       ) : (
         <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
@@ -220,8 +226,7 @@ export function SalesTable({
             columns={columns}
             data={sales}
             onRowClick={(row) => {
-              setSelected(row);
-              setDetailOpen(true);
+              router.push(`/sales/${row.id}`);
             }}
           />
           <DataTablePagination
@@ -235,14 +240,6 @@ export function SalesTable({
           />
         </div>
       )}
-
-      <BillDetailSheet
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        sale={selected}
-        accounts={accounts}
-        defaultAccountId={defaultAccountId}
-      />
     </>
   );
 }

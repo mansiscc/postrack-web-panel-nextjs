@@ -3,8 +3,10 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Package } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 
+import { toggleProductActiveAction } from "@/hooks/features/products/actions";
 import {
   getStockStatus,
   mapProductRow,
@@ -15,7 +17,7 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
-import { StatusBadge } from "@/components/forms/status-badge";
+import { ActiveStatusToggle } from "@/components/forms/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -46,11 +48,26 @@ export function InventoryOverviewPanel({
   const [stock, setStock] = useState<
     "all" | "in_stock" | "low_stock" | "out_of_stock"
   >(initialStock);
+  const [, startTransition] = useTransition();
 
-  const items = useMemo(
-    () => products.map(mapProductRow),
-    [products],
-  );
+  const [items, setItems] = useState(() => products.map(mapProductRow));
+
+  useEffect(() => {
+    setItems(products.map(mapProductRow));
+  }, [products]);
+
+  const handleToggle = (item: ProductListItem, isActive: boolean) => {
+    startTransition(async () => {
+      const result = await toggleProductActiveAction(item.id, isActive);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setItems((prev) =>
+        prev.map((row) => (row.id === item.id ? { ...row, isActive } : row)),
+      );
+    });
+  };
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -105,7 +122,7 @@ export function InventoryOverviewPanel({
               className={cn(
                 "tabular-nums",
                 stockStatus === "out" && "text-destructive",
-                stockStatus === "low" && "text-amber-600",
+                stockStatus === "low" && "text-warning",
               )}
             >
               {formatNumber(row.original.stockQuantity)}
@@ -147,9 +164,9 @@ export function InventoryOverviewPanel({
         accessorKey: "isActive",
         header: "Status",
         cell: ({ row }) => (
-          <StatusBadge
-            status={row.original.isActive ? "active" : "inactive"}
-            label={row.original.isActive ? "Active" : "Inactive"}
+          <ActiveStatusToggle
+            isActive={row.original.isActive}
+            onToggle={(checked) => handleToggle(row.original, checked)}
           />
         ),
       },
