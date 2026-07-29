@@ -20,6 +20,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  bindDecimalInput,
+  bindEmailInput,
+  bindGstinInput,
+  bindPhoneInput,
+} from "@/lib/validation/rhf";
+import {
   ModalCard,
   ModalCardBody,
   ModalCardContent,
@@ -116,18 +122,22 @@ export function SupplierFormSheet({
             </FormField>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField label="Phone" htmlFor="phone">
-                <Input id="phone" {...form.register("phone")} />
+                <Input id="phone" {...bindPhoneInput(form, "phone")} />
               </FormField>
               <FormField
                 label="Email"
                 htmlFor="email"
                 error={form.formState.errors.email?.message}
               >
-                <Input id="email" type="email" {...form.register("email")} />
+                <Input id="email" {...bindEmailInput(form, "email")} />
               </FormField>
             </div>
-            <FormField label="GST number" htmlFor="gstNumber">
-              <Input id="gstNumber" {...form.register("gstNumber")} />
+            <FormField
+              label="GST number"
+              htmlFor="gstNumber"
+              error={form.formState.errors.gstNumber?.message}
+            >
+              <Input id="gstNumber" {...bindGstinInput(form, "gstNumber")} />
             </FormField>
             <FormField label="Address" htmlFor="address">
               <Textarea id="address" rows={3} {...form.register("address")} />
@@ -135,9 +145,9 @@ export function SupplierFormSheet({
             <FormField label="Opening balance" htmlFor="openingBalance">
               <Input
                 id="openingBalance"
-                type="number"
-                step="0.01"
-                {...form.register("openingBalance")}
+                {...bindDecimalInput(form, "openingBalance", {
+                  placeholder: "0.00",
+                })}
               />
             </FormField>
           </ModalCardBody>

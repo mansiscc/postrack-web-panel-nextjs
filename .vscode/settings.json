@@ -4,5 +4,7 @@
   "npm.autoDetect": "on",
   "css.lint.unknownAtRules": "ignore",
   "scss.lint.unknownAtRules": "ignore",
-  "less.lint.unknownAtRules": "ignore"
+  "less.lint.unknownAtRules": "ignore",
+  "deno.enablePaths": ["./supabase/functions"],
+  "deno.importMap": "./supabase/functions/deno.json"
 }

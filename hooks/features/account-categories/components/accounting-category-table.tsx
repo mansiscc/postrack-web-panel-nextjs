@@ -169,10 +169,8 @@ export function AccountingCategoryTable({
               setEditing(row.original);
               setSheetOpen(true);
             }}
-            onDelete={
-              canDelete ? () => setDeleteTarget(row.original) : undefined
-            }
-            deleteDisabled={row.original.isSystem}
+            onDelete={() => setDeleteTarget(row.original)}
+            deleteDisabled={!canDelete || row.original.isSystem}
           />
         ),
       },

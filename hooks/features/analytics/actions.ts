@@ -95,18 +95,20 @@ export async function exportPurchaseInsightsCsvAction(
         supplier.totalSpend,
       ]),
     );
-    const productCsv = rowsToCsv(
-      ["Product", "Qty", "Total spend"],
-      summary.topProducts.map((product) => [
-        product.productName,
-        product.totalQty,
-        product.totalSpend,
+    const recentCsv = rowsToCsv(
+      ["Supplier", "Date", "Invoice", "Amount", "Items"],
+      summary.recentPurchases.map((purchase) => [
+        purchase.supplierName,
+        purchase.date,
+        purchase.invoiceNumber ?? "",
+        purchase.totalAmount,
+        purchase.totalItems,
       ]),
     );
 
     return actionSuccess({
       filename: `purchase-insights-${format(new Date(), "yyyy-MM-dd")}.csv`,
-      csv: `${supplierCsv}\n\n${productCsv}`,
+      csv: `${supplierCsv}\n\n${recentCsv}`,
     });
   } catch (error) {
     return actionError(getErrorMessage(error));

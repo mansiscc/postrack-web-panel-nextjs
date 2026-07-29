@@ -172,11 +172,8 @@ export function AccountTable({ accounts, canDelete }: AccountTableProps) {
               setEditing(row.original);
               setSheetOpen(true);
             }}
-            onDelete={
-              canDelete && !row.original.isDefault
-                ? () => setDeleteTarget(row.original)
-                : undefined
-            }
+            onDelete={() => setDeleteTarget(row.original)}
+            deleteDisabled={!canDelete || row.original.isDefault}
           />
         ),
       },

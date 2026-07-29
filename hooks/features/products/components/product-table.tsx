@@ -239,24 +239,18 @@ export function ProductTable({
         header: "Actions",
         cell: ({ row }) => (
           <RowActions
-            onEdit={
-              row.original.isDeleted
-                ? undefined
-                : () => {
-                    setEditing(row.original);
-                    setFormOpen(true);
-                  }
-            }
+            onEdit={() => {
+              setEditing(row.original);
+              setFormOpen(true);
+            }}
+            editDisabled={row.original.isDeleted}
             onRestore={
               canDelete && row.original.isDeleted
                 ? () => handleRestore(row.original)
                 : undefined
             }
-            onDelete={
-              canDelete && !row.original.isDeleted
-                ? () => setDeleteTarget(row.original)
-                : undefined
-            }
+            onDelete={() => setDeleteTarget(row.original)}
+            deleteDisabled={!canDelete || row.original.isDeleted}
           />
         ),
       },

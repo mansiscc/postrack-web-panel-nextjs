@@ -28,7 +28,16 @@ export async function createUserAction(
       return actionError(parsed.error.issues[0]?.message ?? "Invalid input");
     }
 
-    await createUserRecord(user, parsed.data);
+    await createUserRecord(user, {
+      fullName: parsed.data.fullName,
+      email: parsed.data.email,
+      password: parsed.data.password,
+      phone: parsed.data.phone,
+      role: parsed.data.role,
+      status: parsed.data.status,
+      permissionStockIn: parsed.data.permissionStockIn,
+      permissionStockOut: parsed.data.permissionStockOut,
+    });
     revalidatePath("/users");
     return actionSuccess(undefined);
   } catch (error) {

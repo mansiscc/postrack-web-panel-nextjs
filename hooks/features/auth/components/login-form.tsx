@@ -13,6 +13,7 @@ import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { bindEmailInput } from "@/lib/validation/rhf";
 import { Label } from "@/components/ui/label";
 
 const REMEMBER_EMAIL_KEY = "postrack.rememberEmail";
@@ -70,11 +71,9 @@ export function LoginForm() {
       >
         <Input
           id="email"
-          type="email"
-          autoComplete="email"
           placeholder="you@store.com"
           aria-invalid={Boolean(form.formState.errors.email)}
-          {...form.register("email")}
+          {...bindEmailInput(form, "email")}
         />
       </FormField>
 

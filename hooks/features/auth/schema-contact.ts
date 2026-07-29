@@ -1,13 +1,20 @@
 import { z } from "zod";
 
+import {
+  INDIAN_MOBILE_REGEX,
+  requiredEmail,
+  requiredIndianMobile,
+} from "@/lib/validation/fields";
+
 export const contactLeadSchema = z
   .object({
-    fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(80),
-    phone: z
+    fullName: z
       .string()
       .trim()
-      .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
-    email: z.string().trim().email("Enter a valid email"),
+      .min(2, "Name must be at least 2 characters")
+      .max(80),
+    phone: requiredIndianMobile,
+    email: requiredEmail,
     businessName: z
       .string()
       .trim()
@@ -34,6 +41,8 @@ export const contactLeadSchema = z
   });
 
 export type ContactLeadInput = z.infer<typeof contactLeadSchema>;
+
+export { INDIAN_MOBILE_REGEX };
 
 export const LEAD_SOURCE_OPTIONS = [
   { value: "instagram", label: "Instagram" },

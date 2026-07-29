@@ -18,6 +18,7 @@ import type { CustomerListItem } from "@/hooks/features/customers/types";
 import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { bindEmailInput, bindPhoneInput } from "@/lib/validation/rhf";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -114,14 +115,14 @@ export function CustomerFormSheet({
               required
               error={form.formState.errors.phone?.message}
             >
-              <Input id="phone" {...form.register("phone")} />
+              <Input id="phone" {...bindPhoneInput(form, "phone")} />
             </FormField>
             <FormField
               label="Email"
               htmlFor="email"
               error={form.formState.errors.email?.message}
             >
-              <Input id="email" type="email" {...form.register("email")} />
+              <Input id="email" {...bindEmailInput(form, "email")} />
             </FormField>
             <FormField label="Address" htmlFor="address">
               <Textarea id="address" rows={3} {...form.register("address")} />

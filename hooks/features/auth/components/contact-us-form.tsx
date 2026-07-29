@@ -15,6 +15,7 @@ import { submitDemoLead } from "@/hooks/features/auth/submit-demo-lead";
 import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { bindEmailInput, bindPhoneInput } from "@/lib/validation/rhf";
 import {
   Select,
   SelectContent,
@@ -108,20 +109,7 @@ export function ContactUsForm() {
         required
         error={form.formState.errors.phone?.message}
       >
-        <Input
-          id="phone"
-          inputMode="numeric"
-          maxLength={10}
-          placeholder="10-digit mobile"
-          {...form.register("phone")}
-          onChange={(event) =>
-            form.setValue(
-              "phone",
-              event.target.value.replace(/\D/g, "").slice(0, 10),
-              { shouldValidate: true },
-            )
-          }
-        />
+        <Input id="phone" {...bindPhoneInput(form, "phone")} />
       </FormField>
       <FormField
         label="Email"
@@ -129,7 +117,7 @@ export function ContactUsForm() {
         required
         error={form.formState.errors.email?.message}
       >
-        <Input id="email" type="email" {...form.register("email")} />
+        <Input id="email" {...bindEmailInput(form, "email")} />
       </FormField>
       <FormField
         label="Business name"

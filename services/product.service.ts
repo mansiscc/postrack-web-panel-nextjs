@@ -15,6 +15,7 @@ import {
   type ProductListParams,
   type UpdateProductInput,
 } from "@/repositories/products.repository";
+import { isReservedProductBarcode } from "@/lib/validation/fields";
 import { createClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/types/auth";
 import { AppError } from "@/utils/errors";
@@ -46,10 +47,17 @@ async function assertUniqueBarcode(
   const trimmed = barcode?.trim();
   if (!trimmed) return;
 
+  if (isReservedProductBarcode(trimmed)) {
+    throw new AppError(
+      "This barcode is reserved for system use",
+      "RESERVED_BARCODE",
+    );
+  }
+
   const existing = await getProductByBarcode(supabase, trimmed, excludeId);
   if (existing) {
     throw new AppError(
-      "A product with this barcode already exists",
+      "A product with this barcode already exists (including deleted products). Restore that product or use a different barcode.",
       "DUPLICATE_BARCODE",
     );
   }

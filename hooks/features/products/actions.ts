@@ -7,6 +7,7 @@ import {
   updateProductSchema,
 } from "@/hooks/features/products/schema";
 import { requireAdmin } from "@/lib/auth/guards";
+import { generateProductBarcode } from "@/lib/validation/constants";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
   createProductRecord,
@@ -31,7 +32,7 @@ export async function createProductAction(
 
     const id = await createProductRecord(user, {
       name: parsed.data.name,
-      barcode: parsed.data.barcode,
+      barcode: parsed.data.barcode ?? generateProductBarcode(),
       purchasePrice: parsed.data.purchasePrice,
       sellingPrice: parsed.data.sellingPrice,
       mrp: parsed.data.mrp,

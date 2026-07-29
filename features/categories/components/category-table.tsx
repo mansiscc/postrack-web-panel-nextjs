@@ -132,9 +132,8 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
               setEditing(row.original);
               setSheetOpen(true);
             }}
-            onDelete={
-              canDelete ? () => setDeleteTarget(row.original) : undefined
-            }
+            onDelete={() => setDeleteTarget(row.original)}
+            deleteDisabled={!canDelete}
           />
         ),
       },

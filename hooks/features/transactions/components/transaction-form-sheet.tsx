@@ -19,6 +19,7 @@ import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { bindDecimalInput } from "@/lib/validation/rhf";
 import {
   Select,
   SelectContent,
@@ -199,10 +200,7 @@ export function TransactionFormSheet({
             >
               <Input
                 id="amount"
-                type="number"
-                min={0.01}
-                step="0.01"
-                {...form.register("amount")}
+                {...bindDecimalInput(form, "amount", { placeholder: "0.00" })}
               />
             </FormField>
             <FormField

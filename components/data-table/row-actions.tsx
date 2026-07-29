@@ -8,10 +8,12 @@ import { cn } from "@/lib/utils";
 
 type RowActionsProps = {
   onEdit?: () => void;
+  editDisabled?: boolean;
   onDelete?: () => void;
   deleteDisabled?: boolean;
   onRestore?: () => void;
   onPassword?: () => void;
+  passwordDisabled?: boolean;
   children?: ReactNode;
   className?: string;
 };
@@ -20,12 +22,21 @@ function stopRowClick(event: MouseEvent) {
   event.stopPropagation();
 }
 
+function shouldShowAction(
+  handler: (() => void) | undefined,
+  disabled: boolean | undefined,
+) {
+  return handler !== undefined || disabled === true;
+}
+
 export function RowActions({
   onEdit,
+  editDisabled,
   onDelete,
   deleteDisabled,
   onRestore,
   onPassword,
+  passwordDisabled,
   children,
   className,
 }: RowActionsProps) {
@@ -35,23 +46,27 @@ export function RowActions({
       className={cn("flex items-center justify-end gap-0.5", className)}
       onClick={stopRowClick}
     >
-      {onEdit ? (
+      {shouldShowAction(onEdit, editDisabled) ? (
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label="Edit"
+          disabled={editDisabled}
+          className={cn(editDisabled && "opacity-50")}
           onClick={onEdit}
         >
           <Pencil />
         </Button>
       ) : null}
-      {onPassword ? (
+      {shouldShowAction(onPassword, passwordDisabled) ? (
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label="Change password"
+          disabled={passwordDisabled}
+          className={cn(passwordDisabled && "opacity-50")}
           onClick={onPassword}
         >
           <KeyRound />
@@ -68,7 +83,7 @@ export function RowActions({
           <RotateCcw />
         </Button>
       ) : null}
-      {onDelete ? (
+      {shouldShowAction(onDelete, deleteDisabled) ? (
         <Button
           type="button"
           variant="ghost"

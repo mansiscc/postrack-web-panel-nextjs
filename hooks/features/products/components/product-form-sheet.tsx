@@ -26,6 +26,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  bindBarcodeInput,
+  bindDecimalInput,
+  bindIntegerInput,
+} from "@/lib/validation/rhf";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -237,8 +242,9 @@ export function ProductFormSheet({
                     >
                       <Input
                         id="barcode"
-                        placeholder="Barcode (optional)"
-                        {...form.register("barcode")}
+                        {...bindBarcodeInput(form, "barcode", {
+                          placeholder: "Barcode (optional)",
+                        })}
                       />
                     </FormField>
                   </div>
@@ -249,35 +255,35 @@ export function ProductFormSheet({
                     <FormField label="Purchase Price" htmlFor="purchasePrice">
                       <Input
                         id="purchasePrice"
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        placeholder="e.g. 20.50"
-                        {...form.register("purchasePrice")}
+                        {...bindDecimalInput(form, "purchasePrice", {
+                          placeholder: "e.g. 20.50",
+                        })}
                       />
                     </FormField>
                     <FormField
                       label="Selling Price"
                       htmlFor="sellingPrice"
                       required
+                      error={form.formState.errors.sellingPrice?.message}
                     >
                       <Input
                         id="sellingPrice"
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        placeholder="e.g. 25.00"
-                        {...form.register("sellingPrice")}
+                        {...bindDecimalInput(form, "sellingPrice", {
+                          placeholder: "e.g. 25.00",
+                        })}
                       />
                     </FormField>
-                    <FormField label="MRP" htmlFor="mrp" required>
+                    <FormField
+                      label="MRP"
+                      htmlFor="mrp"
+                      required
+                      error={form.formState.errors.mrp?.message}
+                    >
                       <Input
                         id="mrp"
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        placeholder="e.g. 30.00"
-                        {...form.register("mrp")}
+                        {...bindDecimalInput(form, "mrp", {
+                          placeholder: "e.g. 30.00",
+                        })}
                       />
                     </FormField>
                   </div>
@@ -321,11 +327,9 @@ export function ProductFormSheet({
                     >
                       <Input
                         id="openingStock"
-                        type="number"
-                        min={0}
-                        step="1"
-                        placeholder="e.g. 50"
-                        {...form.register("openingStock")}
+                        {...bindIntegerInput(form, "openingStock", {
+                          placeholder: "e.g. 50",
+                        })}
                       />
                     </FormField>
                   ) : null}
@@ -337,11 +341,9 @@ export function ProductFormSheet({
                   >
                     <Input
                       id="lowStockAlertQty"
-                      type="number"
-                      min={0}
-                      step="1"
-                      placeholder="e.g. 5"
-                      {...form.register("lowStockAlertQty")}
+                      {...bindIntegerInput(form, "lowStockAlertQty", {
+                        placeholder: "e.g. 5",
+                      })}
                     />
                   </FormField>
 

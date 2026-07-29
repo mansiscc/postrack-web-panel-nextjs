@@ -24,6 +24,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  bindAlphanumericInput,
+  bindGstinInput,
+  bindPhoneInput,
+} from "@/lib/validation/rhf";
 
 type BusinessProfileFormProps = {
   initial: BusinessProfileInput;
@@ -179,9 +184,10 @@ export function BusinessProfileForm({
                 >
                   <Input
                     id="phone"
-                    placeholder="Optional"
                     disabled={!canEdit}
-                    {...form.register("phone")}
+                    {...bindPhoneInput(form, "phone", {
+                      placeholder: "10-digit mobile",
+                    })}
                   />
                 </FormField>
 
@@ -233,9 +239,8 @@ export function BusinessProfileForm({
                 >
                   <Input
                     id="gstin"
-                    placeholder="Optional"
                     disabled={!canEdit}
-                    {...form.register("gstin")}
+                    {...bindGstinInput(form, "gstin")}
                   />
                 </FormField>
 
@@ -247,9 +252,11 @@ export function BusinessProfileForm({
                 >
                   <Input
                     id="invoicePrefix"
-                    placeholder="Default: B"
                     disabled={!canEdit}
-                    {...form.register("invoicePrefix")}
+                    {...bindAlphanumericInput(form, "invoicePrefix", {
+                      maxLength: 6,
+                      placeholder: "Default: B",
+                    })}
                   />
                 </FormField>
               </div>

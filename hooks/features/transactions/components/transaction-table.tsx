@@ -226,16 +226,17 @@ export function TransactionTable({
       {
         id: "actions",
         header: "Actions",
-        cell: ({ row }) =>
-          canEditDelete && row.original.isManual ? (
-            <RowActions
-              onEdit={() => {
-                setEditing(row.original);
-                setSheetOpen(true);
-              }}
-              onDelete={() => setDeleteTarget(row.original)}
-            />
-          ) : null,
+        cell: ({ row }) => (
+          <RowActions
+            onEdit={() => {
+              setEditing(row.original);
+              setSheetOpen(true);
+            }}
+            editDisabled={!canEditDelete || !row.original.isManual}
+            onDelete={() => setDeleteTarget(row.original)}
+            deleteDisabled={!canEditDelete || !row.original.isManual}
+          />
+        ),
       },
     ],
     [canEditDelete],

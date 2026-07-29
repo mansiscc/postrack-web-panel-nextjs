@@ -184,25 +184,18 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
 
           return (
             <RowActions
-              onEdit={
-                !user.isDeleted
-                  ? () => {
-                      setEditing(user);
-                      setSheetOpen(true);
-                    }
-                  : undefined
-              }
-              onPassword={
-                !user.isDeleted ? () => setPasswordTarget(user) : undefined
-              }
+              onEdit={() => {
+                setEditing(user);
+                setSheetOpen(true);
+              }}
+              editDisabled={user.isDeleted}
+              onPassword={() => setPasswordTarget(user)}
+              passwordDisabled={user.isDeleted}
               onRestore={
                 user.isDeleted ? () => handleRestore(user) : undefined
               }
-              onDelete={
-                !user.isDeleted && !isSelf
-                  ? () => setDeleteTarget(user)
-                  : undefined
-              }
+              onDelete={() => setDeleteTarget(user)}
+              deleteDisabled={user.isDeleted || isSelf}
             />
           );
         },

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { bindDecimalInput } from "@/lib/validation/rhf";
 import {
   ModalCard,
   ModalCardBody,
@@ -119,10 +120,9 @@ export function AccountFormSheet({
             >
               <Input
                 id="openingBalance"
-                type="number"
-                min={0}
-                step="0.01"
-                {...form.register("openingBalance")}
+                {...bindDecimalInput(form, "openingBalance", {
+                  placeholder: "0.00",
+                })}
               />
             </FormField>
             {isEdit && account && (

@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 
 import { logActivity } from "@/lib/activity-log";
+import { invokeAuthenticatedFunction } from "@/lib/supabase/invoke-function";
 import {
   getUserById,
   listUsers,
@@ -54,27 +55,21 @@ export async function createUserRecord(
 ) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase.functions.invoke("create-user", {
-    body: {
-      fullName: input.fullName,
-      email: input.email,
-      password: input.password,
-      phone: input.phone ?? null,
-      role: input.role,
-      status: input.status,
-      createdBy: actor.id,
-      permissionStockIn: input.permissionStockIn,
-      permissionStockOut: input.permissionStockOut,
+  const data = await invokeAuthenticatedFunction<{ id?: string }>(
+    supabase,
+    "create-user",
+    {
+    fullName: input.fullName,
+    email: input.email,
+    password: input.password,
+    phone: input.phone ?? null,
+    role: input.role,
+    status: input.status,
+    createdBy: actor.id,
+    permissionStockIn: input.permissionStockIn,
+    permissionStockOut: input.permissionStockOut,
     },
-  });
-
-  if (error) {
-    throw new AppError(error.message, "EDGE_FUNCTION_ERROR");
-  }
-
-  if (data && typeof data === "object" && "error" in data) {
-    throw new AppError(String(data.error), "EDGE_FUNCTION_ERROR");
-  }
+  );
 
   const headerStore = await headers();
   await logActivity(supabase, {
@@ -134,17 +129,9 @@ export async function updateUserRecordService(
 export async function deleteUserRecord(actor: SessionUser, userId: string) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase.functions.invoke("delete-user", {
-    body: { user_id: userId },
+  const data = await invokeAuthenticatedFunction(supabase, "delete-user", {
+    user_id: userId,
   });
-
-  if (error) {
-    throw new AppError(error.message, "EDGE_FUNCTION_ERROR");
-  }
-
-  if (data && typeof data === "object" && "error" in data) {
-    throw new AppError(String(data.error), "EDGE_FUNCTION_ERROR");
-  }
 
   const headerStore = await headers();
   await logActivity(supabase, {
@@ -190,20 +177,10 @@ export async function changeUserPassword(
 ) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase.functions.invoke(
-    "change-user-password",
-    {
-      body: { user_id: userId, new_password: newPassword },
-    },
-  );
-
-  if (error) {
-    throw new AppError(error.message, "EDGE_FUNCTION_ERROR");
-  }
-
-  if (data && typeof data === "object" && "error" in data) {
-    throw new AppError(String(data.error), "EDGE_FUNCTION_ERROR");
-  }
+  await invokeAuthenticatedFunction(supabase, "change-user-password", {
+    user_id: userId,
+    new_password: newPassword,
+  });
 
   const headerStore = await headers();
   await logActivity(supabase, {

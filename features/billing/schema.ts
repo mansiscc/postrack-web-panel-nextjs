@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { INDIAN_MOBILE_REGEX } from "@/lib/validation/fields";
+
 const cartItemSchema = z.object({
   productId: z.string().uuid(),
   productName: z.string().min(1),
@@ -20,7 +22,14 @@ export const saveBillSchema = z
       .optional()
       .transform((value) => (value && value !== "" ? value : null)),
     customerName: z.string().trim().optional(),
-    customerPhone: z.string().trim().optional(),
+    customerPhone: z
+      .string()
+      .trim()
+      .optional()
+      .refine(
+        (value) => !value || INDIAN_MOBILE_REGEX.test(value),
+        "Enter a valid 10-digit mobile number",
+      ),
     otherItemsAmount: z.number().min(0).optional(),
     discountType: z.enum(["AMOUNT", "PERCENT"]).optional().nullable(),
     discountValue: z.number().min(0).optional(),

@@ -1,42 +1,29 @@
 import { z } from "zod";
 
-const optionalNumber = z
-  .union([z.number(), z.string()])
-  .transform((value) => {
-    if (value === "" || value === null || value === undefined) return null;
-    const parsed = typeof value === "number" ? value : Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  })
-  .nullable()
-  .optional();
+import {
+  nonNegativeNumber,
+  optionalNumberFromInput,
+  optionalProductBarcode,
+  personName,
+} from "@/lib/validation/fields";
 
-const requiredNumber = z
-  .union([z.number(), z.string()])
-  .transform((value) => {
-    const parsed = typeof value === "number" ? value : Number.parseFloat(String(value));
-    return Number.isFinite(parsed) ? parsed : 0;
-  });
-
-export const productFormSchema = z.object({
-  name: z.string().trim().min(1, "Product name is required").max(200),
-  barcode: z.string().trim().max(50).optional().nullable(),
-  purchasePrice: optionalNumber,
-  sellingPrice: optionalNumber,
-  mrp: optionalNumber,
+const productFields = z.object({
+  name: personName("Product name").max(200),
+  barcode: optionalProductBarcode,
+  purchasePrice: optionalNumberFromInput.refine(
+    (value) => value === null || value === undefined || value >= 0,
+    { message: "Purchase price must be 0 or greater" },
+  ),
+  sellingPrice: optionalNumberFromInput,
+  mrp: optionalNumberFromInput,
   unit: z.string().trim().max(20).optional().nullable(),
-  lowStockAlertQty: requiredNumber.refine((value) => value >= 0, {
-    message: "Low stock alert must be 0 or greater",
-  }),
+  lowStockAlertQty: nonNegativeNumber("Low stock alert"),
   productCategoryId: z
     .union([z.string().uuid(), z.literal(""), z.null()])
     .optional()
     .transform((value) => (value && value !== "" ? value : null)),
-  openingStock: requiredNumber.refine((value) => value >= 0, {
-    message: "Opening stock must be 0 or greater",
-  }),
-  stockQuantity: requiredNumber.refine((value) => value >= 0, {
-    message: "Stock quantity must be 0 or greater",
-  }),
+  openingStock: nonNegativeNumber("Opening stock"),
+  stockQuantity: nonNegativeNumber("Stock quantity"),
   isActive: z.boolean(),
   imageUrl: z
     .union([z.string().url(), z.literal(""), z.null()])
@@ -44,10 +31,61 @@ export const productFormSchema = z.object({
     .transform((value) => (value && value !== "" ? value : null)),
 });
 
-export const createProductSchema = productFormSchema;
-export const updateProductSchema = productFormSchema.omit({ openingStock: true });
+function validateProductPricing(
+  data: {
+    purchasePrice?: number | null;
+    sellingPrice?: number | null;
+    mrp?: number | null;
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (data.sellingPrice == null || Number.isNaN(data.sellingPrice)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Selling price is required",
+      path: ["sellingPrice"],
+    });
+  } else if (data.sellingPrice < 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Selling price must be 0 or greater",
+      path: ["sellingPrice"],
+    });
+  }
 
-export type ProductFormInput = z.input<typeof productFormSchema>;
+  if (data.mrp == null || Number.isNaN(data.mrp)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "MRP is required",
+      path: ["mrp"],
+    });
+  } else if (data.mrp < 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "MRP must be 0 or greater",
+      path: ["mrp"],
+    });
+  }
+
+  if (
+    data.purchasePrice != null &&
+    data.sellingPrice != null &&
+    data.sellingPrice < data.purchasePrice
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Selling price cannot be less than purchase price",
+      path: ["sellingPrice"],
+    });
+  }
+}
+
+export const createProductSchema = productFields.superRefine(validateProductPricing);
+export const updateProductSchema = productFields
+  .omit({ openingStock: true })
+  .superRefine(validateProductPricing);
+
+export type ProductFormInput = z.input<typeof productFields>;
 export type CreateProductInput = z.input<typeof createProductSchema>;
 export type UpdateProductInput = z.input<typeof updateProductSchema>;
 export type ParsedCreateProductInput = z.infer<typeof createProductSchema>;

@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { onDecimalChange, onIntegerChange } from "@/lib/validation/rhf";
 import {
   Select,
   SelectContent,
@@ -256,45 +257,49 @@ export function PurchaseForm({
               </FormField>
               <FormField label="Purchase ₹">
                 <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="0.00"
                   value={line.purchasePrice}
                   onChange={(event) =>
-                    updateLine(index, { purchasePrice: event.target.value })
+                    onDecimalChange(event.target.value, (value) =>
+                      updateLine(index, { purchasePrice: value }),
+                    )
                   }
                 />
               </FormField>
               <FormField label="Selling ₹">
                 <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="0.00"
                   value={line.sellingPrice ?? ""}
                   onChange={(event) =>
-                    updateLine(index, { sellingPrice: event.target.value })
+                    onDecimalChange(event.target.value, (value) =>
+                      updateLine(index, { sellingPrice: value }),
+                    )
                   }
                 />
               </FormField>
               <FormField label="MRP">
                 <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="0.00"
                   value={line.mrp ?? ""}
                   onChange={(event) =>
-                    updateLine(index, { mrp: event.target.value })
+                    onDecimalChange(event.target.value, (value) =>
+                      updateLine(index, { mrp: value }),
+                    )
                   }
                 />
               </FormField>
               <FormField label="Qty">
                 <Input
-                  type="number"
-                  min={0}
-                  step="1"
+                  inputMode="numeric"
+                  placeholder="0"
                   value={line.quantity}
                   onChange={(event) =>
-                    updateLine(index, { quantity: event.target.value })
+                    onIntegerChange(event.target.value, (value) =>
+                      updateLine(index, { quantity: value }),
+                    )
                   }
                 />
               </FormField>

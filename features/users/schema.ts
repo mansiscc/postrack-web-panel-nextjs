@@ -1,52 +1,65 @@
 import { z } from "zod";
 
+import {
+  optionalEmail,
+  optionalIndianMobile,
+  personName,
+  requiredEmail,
+} from "@/lib/validation/fields";
+
 const roleEnum = z.enum(["Admin", "Manager", "Staff"]);
 const statusEnum = z.enum(["Active", "Inactive"]);
 
+const permissionFields = {
+  permissionStockIn: z.boolean(),
+  permissionStockOut: z.boolean(),
+};
+
 export const createUserSchema = z
   .object({
-    fullName: z.string().trim().min(1, "Name is required").max(100),
-    email: z.string().trim().email("Enter a valid email"),
+    fullName: personName("Full name"),
+    email: requiredEmail,
+    phone: optionalIndianMobile,
+    role: roleEnum,
+    status: statusEnum,
     password: z.string().min(6, "Password must be at least 6 characters"),
-    phone: z.string().trim().max(20).optional().nullable(),
-    role: roleEnum,
-    status: statusEnum,
-    permissionStockIn: z.boolean(),
-    permissionStockOut: z.boolean(),
+    confirmPassword: z.string().min(1, "Re-enter password"),
+    ...permissionFields,
   })
   .superRefine((data, ctx) => {
-    if (data.role === "Staff" && !data.permissionStockIn && !data.permissionStockOut) {
+    if (data.password !== data.confirmPassword) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Staff must have at least one permission",
-        path: ["permissionStockIn"],
+        message: "Passwords do not match",
+        path: ["confirmPassword"],
       });
     }
   });
 
-export const updateUserSchema = z
-  .object({
-    fullName: z.string().trim().min(1, "Name is required").max(100),
-    phone: z.string().trim().max(20).optional().nullable(),
-    role: roleEnum,
-    status: statusEnum,
-    permissionStockIn: z.boolean(),
-    permissionStockOut: z.boolean(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.role === "Staff" && !data.permissionStockIn && !data.permissionStockOut) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Staff must have at least one permission",
-        path: ["permissionStockIn"],
-      });
-    }
-  });
-
-export const changePasswordSchema = z.object({
-  userId: z.string().uuid(),
-  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+export const updateUserSchema = z.object({
+  fullName: personName("Full name"),
+  phone: optionalIndianMobile,
+  role: roleEnum,
+  status: statusEnum,
+  ...permissionFields,
 });
 
-export type CreateUserInput = z.infer<typeof createUserSchema>;
-export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export const changePasswordSchema = z
+  .object({
+    userId: z.string().uuid(),
+    newPassword: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(1, "Re-enter password"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.newPassword !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Passwords do not match",
+        path: ["confirmPassword"],
+      });
+    }
+  });
+
+export type CreateUserInput = z.input<typeof createUserSchema>;
+export type UpdateUserInput = z.input<typeof updateUserSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
