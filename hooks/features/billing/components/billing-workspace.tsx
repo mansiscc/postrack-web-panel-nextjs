@@ -60,6 +60,7 @@ import type { AccountRow } from "@/repositories/accounts.repository";
 import type { CustomerRow } from "@/repositories/customers.repository";
 import { calculateBillingTotals } from "@/utils/billing-calculator";
 import { formatCurrency } from "@/utils/currency";
+import { createId } from "@/utils/id";
 import { cn } from "@/lib/utils";
 import { readPrintSettings } from "@/utils/print-settings";
 
@@ -226,7 +227,7 @@ export function BillingWorkspace({
 
   const handleAddManual = (name: string, price: number) => {
     addItem({
-      productId: crypto.randomUUID(),
+      productId: createId(),
       productName: name,
       unitPrice: price,
       quantity: 1,

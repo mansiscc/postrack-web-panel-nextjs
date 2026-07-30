@@ -2,8 +2,10 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Landmark, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
+import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -11,7 +13,6 @@ import {
   deleteAccountAction,
   toggleAccountActiveAction,
 } from "@/hooks/features/accounts/actions";
-import { AccountDetailSheet } from "@/hooks/features/accounts/components/account-detail-sheet";
 import { AccountFormSheet } from "@/hooks/features/accounts/components/account-form-sheet";
 import type { AccountListItem } from "@/hooks/features/accounts/types";
 import { DataTable } from "@/components/data-table/data-table";
@@ -34,15 +35,12 @@ type AccountTableProps = {
 
 export function AccountTable({ accounts, canDelete }: AccountTableProps) {
   const refresh = useTableRefresh();
-  const [items, setItems] = useState(accounts);
+  const router = useRouter();
+  const [items, setItems] = useSyncedState(accounts);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState<AccountListItem | null>(null);
-  const [detailAccount, setDetailAccount] = useState<AccountListItem | null>(
-    null,
-  );
   const [deleteTarget, setDeleteTarget] = useState<AccountListItem | null>(null);
   const [, startTransition] = useTransition();
 
@@ -183,7 +181,19 @@ export function AccountTable({ accounts, canDelete }: AccountTableProps) {
 
   return (
     <>
-      <DataTableToolbar>
+      <DataTableToolbar
+        actions={
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setSheetOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Add account
+          </Button>
+        }
+      >
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -191,15 +201,6 @@ export function AccountTable({ accounts, canDelete }: AccountTableProps) {
           className="w-full sm:max-w-xs"
         />
         <StatusFilterSelect value={status} onValueChange={setStatus} />
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setSheetOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Add account
-        </Button>
       </DataTableToolbar>
 
       {filtered.length === 0 ? (
@@ -224,22 +225,10 @@ export function AccountTable({ accounts, canDelete }: AccountTableProps) {
           columns={columns}
           data={filtered}
           onRowClick={(row) => {
-            setDetailAccount(row);
-            setDetailOpen(true);
+            router.push(`/accounts/${row.id}`);
           }}
         />
       )}
-
-      <AccountDetailSheet
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        account={detailAccount}
-        onEdit={(account) => {
-          setDetailOpen(false);
-          setEditing(account);
-          setSheetOpen(true);
-        }}
-      />
 
       <AccountFormSheet
         open={sheetOpen}

@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 
 import { SalesAnalyticsPanel } from "@/hooks/features/analytics/components/sales-analytics-panel";
+import { AnalyticsPageSkeleton } from "@/components/feedback/page-skeleton";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
   getRangeLabel,
   getSalesAnalyticsSummary,
 } from "@/services/analytics.service";
 import type { DateRangePreset } from "@/utils/date";
-import { Skeleton } from "@/components/ui/skeleton";
 
 type SalesAnalyticsPageProps = {
   searchParams: Promise<{
@@ -31,18 +31,7 @@ export default async function SalesAnalyticsPage({
   const rangeLabel = getRangeLabel(range);
 
   return (
-    <Suspense
-      fallback={
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-full max-w-2xl" />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-28" />
-            ))}
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AnalyticsPageSkeleton />}>
       <SalesAnalyticsPanel summary={summary} rangeLabel={rangeLabel} />
     </Suspense>
   );

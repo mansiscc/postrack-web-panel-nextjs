@@ -93,45 +93,72 @@ export function CustomerFormSheet({
       <ModalCardContent size="lg">
         <ModalCardHeader>
           <ModalCardTitle>
-            {isEdit ? "Edit customer" : "Add customer"}
+            {isEdit ? "Update Customer" : "Add New Customer"}
           </ModalCardTitle>
         </ModalCardHeader>
         <form
           onSubmit={onSubmit}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <ModalCardBody className="space-y-4">
+          <ModalCardBody className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                label="Customer Name"
+                htmlFor="name"
+                required
+                error={form.formState.errors.name?.message}
+              >
+                <Input
+                  id="name"
+                  placeholder="Enter customer name"
+                  {...form.register("name")}
+                />
+              </FormField>
+              <FormField
+                label="Phone Number"
+                htmlFor="phone"
+                required
+                error={form.formState.errors.phone?.message}
+              >
+                <Input
+                  id="phone"
+                  placeholder="Enter mobile number"
+                  {...bindPhoneInput(form, "phone")}
+                />
+              </FormField>
+            </div>
             <FormField
-              label="Name"
-              htmlFor="name"
-              required
-              error={form.formState.errors.name?.message}
-            >
-              <Input id="name" {...form.register("name")} />
-            </FormField>
-            <FormField
-              label="Phone"
-              htmlFor="phone"
-              required
-              error={form.formState.errors.phone?.message}
-            >
-              <Input id="phone" {...bindPhoneInput(form, "phone")} />
-            </FormField>
-            <FormField
-              label="Email"
+              label="Email Address"
               htmlFor="email"
               error={form.formState.errors.email?.message}
             >
-              <Input id="email" {...bindEmailInput(form, "email")} />
+              <Input
+                id="email"
+                placeholder="Enter email (optional)"
+                {...bindEmailInput(form, "email")}
+              />
             </FormField>
             <FormField label="Address" htmlFor="address">
-              <Textarea id="address" rows={3} {...form.register("address")} />
-            </FormField>
-            <FormField label="Active">
-              <Switch
-                checked={form.watch("isActive")}
-                onCheckedChange={(checked) => form.setValue("isActive", checked)}
+              <Textarea
+                id="address"
+                rows={3}
+                placeholder="Enter address (optional)"
+                {...form.register("address")}
               />
+            </FormField>
+            <FormField
+              label="Active Status"
+              hint="Inactive customers stay in history but are hidden from active usage."
+            >
+              <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2.5">
+                <p className="text-sm text-foreground">
+                  {form.watch("isActive") ? "Active customer" : "Inactive customer"}
+                </p>
+                <Switch
+                  checked={form.watch("isActive")}
+                  onCheckedChange={(checked) => form.setValue("isActive", checked)}
+                />
+              </div>
             </FormField>
           </ModalCardBody>
           <ModalCardFooter>
@@ -149,7 +176,7 @@ export function CustomerFormSheet({
                   Saving…
                 </>
               ) : (
-                "Save"
+                isEdit ? "Update Customer" : "Save Customer"
               )}
             </Button>
           </ModalCardFooter>

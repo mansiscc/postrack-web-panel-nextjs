@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 
 import { CustomerFormSheet } from "@/hooks/features/customers/components/customer-form-sheet";
@@ -12,6 +13,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
+import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
 import { StatusFilterSelect } from "@/components/forms/status-filter-select";
@@ -28,13 +30,14 @@ type CustomerTableProps = {
 
 export function CustomerTable({ customers }: CustomerTableProps) {
   const refresh = useTableRefresh();
-  const [items, setItems] = useState(customers);
+  const [items, setItems] = useSyncedState(customers);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerListItem | null>(null);
   const [selected, setSelected] = useState<CustomerListItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CustomerListItem | null>(null);
   const [, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -68,6 +71,30 @@ export function CustomerTable({ customers }: CustomerTableProps) {
       setItems((prev) =>
         prev.map((row) => (row.id === item.id ? { ...row, isActive } : row)),
       );
+    });
+  };
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    startTransition(async () => {
+      const result = await updateCustomerAction(deleteTarget.id, {
+        name: deleteTarget.name,
+        phone: deleteTarget.phone,
+        email: deleteTarget.email,
+        address: deleteTarget.address,
+        isActive: false,
+      });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setItems((prev) =>
+        prev.map((row) =>
+          row.id === deleteTarget.id ? { ...row, isActive: false } : row,
+        ),
+      );
+      toast.success("Customer deleted");
+      setDeleteTarget(null);
     });
   };
 
@@ -107,6 +134,8 @@ export function CustomerTable({ customers }: CustomerTableProps) {
               setEditing(row.original);
               setFormOpen(true);
             }}
+            onDelete={() => setDeleteTarget(row.original)}
+            deleteDisabled={!row.original.isActive}
           />
         ),
       },
@@ -182,6 +211,16 @@ export function CustomerTable({ customers }: CustomerTableProps) {
           setEditing(customer);
           setFormOpen(true);
         }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete customer?"
+        description={`Delete "${deleteTarget?.name}"? This will mark the customer as inactive.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={handleDelete}
       />
     </>
   );

@@ -59,6 +59,7 @@ export async function toggleAccountActiveAction(
     const user = await requireAdminOrManager();
     await toggleAccountActive(user, id, isActive);
     revalidatePath("/accounts");
+    revalidatePath(`/accounts/${id}`);
     return actionSuccess(undefined);
   } catch (error) {
     return actionError(getErrorMessage(error));

@@ -20,28 +20,28 @@ function resolveRange(range: AnalyticsRange) {
   if (range.preset === "custom" && range.from && range.to) {
     const from = new Date(`${range.from}T00:00:00`);
     const to = new Date(`${range.to}T23:59:59.999`);
-    return { from, to, bucket: "day" as const };
+    return { from, to };
   }
 
   const preset =
     range.preset === "custom" ? "today" : range.preset === "last7" ? "last7" : range.preset;
   const { from, to } = dateRangePresets(preset);
-  const bucket =
-    preset === "month" ? ("month" as const) : preset === "week" ? ("week" as const) : ("day" as const);
 
-  return { from, to, bucket };
+  return { from, to };
 }
 
 export async function getSalesAnalyticsSummary(
   range: AnalyticsRange,
 ): Promise<SalesAnalyticsSummary> {
   const supabase = await createClient();
-  const { from, to, bucket } = resolveRange(range);
+  const { from, to } = resolveRange(range);
 
+  // Always daily buckets — matches app "Sales Trend (Daily)" for week/month
+  // and keeps axis labels as dates (not Jul / W30).
   return getSalesAnalytics(supabase, {
     start: from.toISOString(),
     end: to.toISOString(),
-    bucket,
+    bucket: "day",
   });
 }
 

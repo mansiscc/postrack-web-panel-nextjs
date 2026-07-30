@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
+import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -53,7 +54,7 @@ export function ProductTable({
 }: ProductTableProps) {
   const router = useRouter();
   const refresh = useTableRefresh();
-  const [items, setItems] = useState(products);
+  const [items, setItems] = useSyncedState(products);
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("all");
   const [stock, setStock] = useState<

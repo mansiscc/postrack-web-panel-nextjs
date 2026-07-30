@@ -1,3 +1,5 @@
+import os from "node:os";
+
 import type { NextConfig } from "next";
 
 const securityHeaders = [
@@ -10,8 +12,22 @@ const securityHeaders = [
   },
 ];
 
+/** LAN IPs so `next dev` Network URL works (HMR / `/_next/*` origin checks). */
+function localNetworkHosts() {
+  const hosts = new Set<string>();
+  for (const infos of Object.values(os.networkInterfaces())) {
+    for (const info of infos ?? []) {
+      if (info.family === "IPv4" && !info.internal) {
+        hosts.add(info.address);
+      }
+    }
+  }
+  return [...hosts];
+}
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  allowedDevOrigins: localNetworkHosts(),
   async redirects() {
     return [
       {

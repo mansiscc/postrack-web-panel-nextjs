@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Tags } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
+import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -31,7 +32,7 @@ type CategoryTableProps = {
 
 export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
   const refresh = useTableRefresh();
-  const [items, setItems] = useState(categories);
+  const [items, setItems] = useSyncedState(categories);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [sheetOpen, setSheetOpen] = useState(false);

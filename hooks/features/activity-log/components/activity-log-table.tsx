@@ -1,11 +1,9 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import {
-  activityLogsToCsv,
   mapActivityLogRow,
   type ActivityLogItem,
 } from "@/hooks/features/activity-log/types";
@@ -16,7 +14,6 @@ import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { SearchInput } from "@/components/forms/search-input";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -49,6 +46,7 @@ export function ActivityLogTable({
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [actionType, setActionType] = useState("all");
   const [moduleName, setModuleName] = useState("all");
   const [status, setStatus] = useState("all");
@@ -57,13 +55,20 @@ export function ActivityLogTable({
   const [dateTo, setDateTo] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
   const fetchLogs = (nextPage = page) => {
     startTransition(async () => {
       const params = new URLSearchParams({
         page: String(nextPage),
         pageSize: String(DEFAULT_PAGE_SIZE),
       });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (actionType !== "all") params.set("actionType", actionType);
       if (moduleName !== "all") params.set("moduleName", moduleName);
       if (status !== "all") params.set("status", status);
@@ -82,6 +87,10 @@ export function ActivityLogTable({
       setPage(nextPage);
     });
   };
+
+  useEffect(() => {
+    fetchLogs(1);
+  }, [debouncedSearch, actionType, moduleName, status, userId, dateFrom, dateTo]);
 
   const columns = useMemo<ColumnDef<ActivityLogItem>[]>(
     () => [
@@ -129,27 +138,9 @@ export function ActivityLogTable({
     [],
   );
 
-  const exportCsv = () => {
-    const csv = activityLogsToCsv(items);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `activity-log-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <>
-      <DataTableToolbar
-        actions={
-          <Button type="button" variant="outline" onClick={exportCsv}>
-            <Download />
-            Export CSV
-          </Button>
-        }
-      >
+      <DataTableToolbar>
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -204,28 +195,26 @@ export function ActivityLogTable({
             <SelectItem value="Failed">Failed</SelectItem>
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          value={dateFrom}
-          onChange={(event) => setDateFrom(event.target.value)}
-          className="h-10 w-37.5"
-          aria-label="From date"
-        />
-        <Input
-          type="date"
-          value={dateTo}
-          onChange={(event) => setDateTo(event.target.value)}
-          className="h-10 w-37.5"
-          aria-label="To date"
-        />
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => fetchLogs(1)}
-          disabled={isPending}
-        >
-          Apply
-        </Button>
+        <div className="flex items-center gap-2">
+          <p className="text-[12px] font-medium text-muted-foreground">From</p>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="h-10 w-37.5"
+            aria-label="From date"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <p className="text-[12px] font-medium text-muted-foreground">To</p>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="h-10 w-37.5"
+            aria-label="To date"
+          />
+        </div>
       </DataTableToolbar>
 
       {items.length === 0 ? (

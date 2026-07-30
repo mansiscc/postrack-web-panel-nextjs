@@ -37,7 +37,6 @@ export function PurchaseTable({
   total,
   formOptions,
 }: PurchaseTableProps) {
-  const [items] = useState(purchases);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<PurchaseListItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -45,14 +44,14 @@ export function PurchaseTable({
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
-    return items.filter(
+    return purchases.filter(
       (item) =>
         !term ||
         (item.invoiceNumber?.toLowerCase().includes(term) ?? false) ||
         item.supplierName.toLowerCase().includes(term) ||
         (item.notes?.toLowerCase().includes(term) ?? false),
     );
-  }, [items, search]);
+  }, [purchases, search]);
 
   const columns = useMemo<ColumnDef<PurchaseListItem>[]>(
     () => [

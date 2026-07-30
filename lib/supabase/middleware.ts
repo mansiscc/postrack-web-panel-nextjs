@@ -14,6 +14,13 @@ import { getDefaultHomePath } from "@/lib/auth/session";
 import type { Database } from "@/types/database.types";
 
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Defense in depth: never auth-gate Next.js internals (HMR, tooling).
+  if (pathname.startsWith("/_next/") || pathname.startsWith("/__nextjs")) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
@@ -41,7 +48,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
   const isPublic = isPublicPath(pathname);
 
   if (!user) {

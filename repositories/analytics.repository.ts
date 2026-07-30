@@ -37,6 +37,14 @@ export type PurchaseInsightsSummary = {
     purchaseCount: number;
     totalSpend: number;
   }>;
+  recentPurchases: Array<{
+    id: string;
+    date: string;
+    supplierName: string;
+    invoiceNumber: string | null;
+    totalAmount: number;
+    totalItems: number;
+  }>;
   topProducts: Array<{
     productId: string;
     productName: string;
@@ -115,7 +123,7 @@ export async function getPurchaseInsights(
 
   const { data: purchases, error } = await supabase
     .from("stock_in")
-    .select("id, date, total_amount, total_items, supplier_id")
+    .select("id, date, total_amount, total_items, supplier_id, invoice_number")
     .gte("date", startDate)
     .lte("date", endDate)
     .neq("invoice_number", "OPENING");
@@ -127,6 +135,7 @@ export async function getPurchaseInsights(
       totalSpend: 0,
       totalItems: 0,
       topSuppliers: [],
+      recentPurchases: [],
       topProducts: [],
       trend: [],
     };
@@ -220,7 +229,23 @@ export async function getPurchaseInsights(
     totalItems,
     topSuppliers: [...supplierTotals.values()]
       .sort((a, b) => b.totalSpend - a.totalSpend)
-      .slice(0, 10),
+      .slice(0, 5),
+    recentPurchases: [...purchases]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 10)
+      .map((purchase) => ({
+        id: purchase.id,
+        date: purchase.date,
+        supplierName: purchase.supplier_id
+          ? (supplierMap.get(purchase.supplier_id) ?? "Unknown supplier")
+          : "Walk-in purchase",
+        invoiceNumber:
+          purchase.invoice_number && purchase.invoice_number !== "OPENING"
+            ? purchase.invoice_number
+            : null,
+        totalAmount: purchase.total_amount ?? 0,
+        totalItems: purchase.total_items ?? 0,
+      })),
     topProducts: [...productTotals.values()]
       .sort((a, b) => b.totalSpend - a.totalSpend)
       .slice(0, 10),

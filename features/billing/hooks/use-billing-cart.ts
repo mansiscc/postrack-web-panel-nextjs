@@ -7,6 +7,7 @@ import {
   type BillingCartState,
   type CartItem,
 } from "@/features/billing/types";
+import { createId } from "@/utils/id";
 
 function storageKey(companyId: string) {
   return `postrack_cart_${companyId}`;
@@ -125,7 +126,7 @@ export function useBillingCart(
 
       return {
         ...prev,
-        items: [...prev.items, { ...item, id: crypto.randomUUID() }],
+        items: [...prev.items, { ...item, id: createId() }],
       };
     });
   }, []);

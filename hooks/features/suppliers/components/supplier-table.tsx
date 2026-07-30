@@ -5,6 +5,7 @@ import { Plus, Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
+import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -32,7 +33,7 @@ type SupplierTableProps = {
 export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
   const refresh = useTableRefresh();
   const router = useRouter();
-  const [items, setItems] = useState(suppliers);
+  const [items, setItems] = useSyncedState(suppliers);
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierListItem | null>(null);

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -19,6 +19,7 @@ import type { ProductListItem } from "@/hooks/features/products/types";
 import { FormField } from "@/components/forms/form-field";
 import { FormSheetFooter } from "@/components/forms/form-sheet-footer";
 import { ImageUpload } from "@/components/forms/image-upload";
+import { SearchSuggestField } from "@/components/forms/search-suggest-field";
 import {
   Card,
   CardContent,
@@ -60,6 +61,7 @@ type ProductFormSheetProps = {
 };
 
 const UNIT_OPTIONS = ["Kg", "Gms", "Pcs", "Ltr", "Ml"] as const;
+const DEFAULT_UNIT = "Pcs";
 
 function normalizeUnit(unit: string | null | undefined) {
   if (!unit?.trim()) return "";
@@ -72,7 +74,7 @@ function normalizeUnit(unit: string | null | undefined) {
 
 function getUnitSelectValue(unit: string | null | undefined) {
   const normalized = normalizeUnit(unit);
-  return normalized || "none";
+  return normalized || DEFAULT_UNIT;
 }
 
 const emptyValues: CreateProductInput = {
@@ -81,7 +83,7 @@ const emptyValues: CreateProductInput = {
   purchasePrice: null,
   sellingPrice: null,
   mrp: null,
-  unit: "",
+  unit: DEFAULT_UNIT,
   lowStockAlertQty: 0,
   productCategoryId: null,
   openingStock: 0,
@@ -117,13 +119,27 @@ export function ProductFormSheet({
   onSuccess,
 }: ProductFormSheetProps) {
   const isEdit = Boolean(product);
+  const [categoryQuery, setCategoryQuery] = useState("");
   const form = useForm<CreateProductInput | UpdateProductInput>({
     resolver: zodResolver(isEdit ? updateProductSchema : createProductSchema),
     defaultValues: emptyValues,
   });
 
+  const categoryOptions = useMemo(
+    () =>
+      categories.map((category) => ({
+        id: category.id,
+        title: category.name,
+      })),
+    [categories],
+  );
+
   useEffect(() => {
     if (open) {
+      const categoryId = product?.categoryId ?? null;
+      const categoryName =
+        categories.find((category) => category.id === categoryId)?.name ?? "";
+
       form.reset(
         product
           ? {
@@ -132,17 +148,18 @@ export function ProductFormSheet({
               purchasePrice: product.purchasePrice,
               sellingPrice: product.sellingPrice,
               mrp: product.mrp,
-              unit: normalizeUnit(product.unit),
+              unit: normalizeUnit(product.unit) || DEFAULT_UNIT,
               lowStockAlertQty: product.lowStockAlertQty,
-              productCategoryId: product.categoryId,
+              productCategoryId: categoryId,
               stockQuantity: product.stockQuantity,
               isActive: product.isActive,
               imageUrl: product.imageUrl,
             }
           : emptyValues,
       );
+      setCategoryQuery(categoryName);
     }
-  }, [open, product, form]);
+  }, [open, product, categories, form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     const result = isEdit
@@ -159,9 +176,9 @@ export function ProductFormSheet({
     onSuccess();
   });
 
+  const selectedCategoryId = form.watch("productCategoryId") ?? null;
   const unitValue = getUnitSelectValue(form.watch("unit"));
   const unitOptions =
-    unitValue !== "none" &&
     !UNIT_OPTIONS.includes(unitValue as (typeof UNIT_OPTIONS)[number])
       ? [...UNIT_OPTIONS, unitValue]
       : [...UNIT_OPTIONS];
@@ -209,29 +226,25 @@ export function ProductFormSheet({
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FormField label="Category" className="min-w-0">
-                      <Select
-                        value={form.watch("productCategoryId") ?? "none"}
-                        onValueChange={(value) =>
-                          form.setValue(
-                            "productCategoryId",
-                            value === "none" ? null : value,
-                          )
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Category (Optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">
-                            Select Category (Optional)
-                          </SelectItem>
-                          {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchSuggestField
+                        value={categoryQuery}
+                        selectedId={selectedCategoryId}
+                        options={categoryOptions}
+                        placeholder="Search category (optional)"
+                        onValueChange={(query) => {
+                          setCategoryQuery(query);
+                          const selected = categories.find(
+                            (category) => category.id === selectedCategoryId,
+                          );
+                          if (selected && selected.name !== query) {
+                            form.setValue("productCategoryId", null);
+                          }
+                        }}
+                        onSelect={(option) => {
+                          form.setValue("productCategoryId", option.id);
+                          setCategoryQuery(option.title);
+                        }}
+                      />
                     </FormField>
 
                     <FormField
@@ -351,17 +364,13 @@ export function ProductFormSheet({
                     <Select
                       value={unitValue}
                       onValueChange={(value) =>
-                        form.setValue(
-                          "unit",
-                          value === "none" ? "" : normalizeUnit(value),
-                        )
+                        form.setValue("unit", normalizeUnit(value) || DEFAULT_UNIT)
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Select unit</SelectItem>
                         {unitOptions.map((unit) => (
                           <SelectItem key={unit} value={unit}>
                             {unit}

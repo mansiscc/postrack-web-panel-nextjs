@@ -52,6 +52,12 @@ function isSupplierDetailPath(pathname: string) {
   return Boolean(id);
 }
 
+function isAccountDetailPath(pathname: string) {
+  if (!pathname.startsWith("/accounts/")) return false;
+  const id = pathname.slice("/accounts/".length).split("/")[0];
+  return Boolean(id);
+}
+
 type TopbarProps = {
   onMenuClick: () => void;
 };
@@ -65,11 +71,14 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const showDetailBack =
     isProductDetailPath(pathname) ||
     isSalesDetailPath(pathname) ||
-    isSupplierDetailPath(pathname);
+    isSupplierDetailPath(pathname) ||
+    isAccountDetailPath(pathname);
   const detailBackHref = isSalesDetailPath(pathname)
     ? "/sales"
     : isSupplierDetailPath(pathname)
       ? "/suppliers"
+      : isAccountDetailPath(pathname)
+        ? "/accounts"
       : "/products";
 
   return (

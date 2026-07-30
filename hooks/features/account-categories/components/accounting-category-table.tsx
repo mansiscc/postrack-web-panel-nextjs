@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { FolderTree, Plus } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
+import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -42,7 +43,7 @@ export function AccountingCategoryTable({
   canDelete,
 }: AccountingCategoryTableProps) {
   const refresh = useTableRefresh();
-  const [items, setItems] = useState(categories);
+  const [items, setItems] = useSyncedState(categories);
   const [search, setSearch] = useState("");
   const [type, setType] = useState<"all" | "income" | "expense">("all");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");

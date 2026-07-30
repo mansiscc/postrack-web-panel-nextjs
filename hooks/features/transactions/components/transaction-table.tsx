@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
+import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -74,7 +75,7 @@ export function TransactionTable({
   initialDateTo = "",
 }: TransactionTableProps) {
   const refresh = useTableRefresh();
-  const [items, setItems] = useState(transactions);
+  const [items, setItems] = useSyncedState(transactions);
   const [search, setSearch] = useState("");
   const [entryType, setEntryType] = useState<"all" | "income" | "expense">(
     initialEntryType,
@@ -243,12 +244,28 @@ export function TransactionTable({
   );
 
   const kpis = [
-    { label: "Total income", value: formatCurrency(totals.totalIncome) },
-    { label: "Total expense", value: formatCurrency(totals.totalExpense) },
-    { label: "Net balance", value: formatCurrency(totals.netBalance) },
+    {
+      label: "Total Income",
+      value: formatCurrency(totals.totalIncome),
+      tone: "text-success",
+    },
+    {
+      label: "Total Expense",
+      value: formatCurrency(totals.totalExpense),
+      tone: "text-destructive",
+    },
+    {
+      label: "Net Balance",
+      value: formatCurrency(totals.netBalance),
+      tone:
+        totals.netBalance >= 0
+          ? "text-success"
+          : "text-destructive",
+    },
     {
       label: "Entries",
       value: totals.totalEntriesCount.toLocaleString(),
+      tone: "text-foreground",
     },
   ];
 
@@ -263,29 +280,35 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+          <Card key={kpi.label} className="border-border/70 shadow-card-sm">
+            <CardHeader className="pb-1.5">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {kpi.label}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tabular-nums">{kpi.value}</p>
+            <CardContent className="pt-0">
+              <p className={cn("text-2xl font-bold tabular-nums", kpi.tone)}>
+                {kpi.value}
+              </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
       <DataTableToolbar
+        className="mt-4 gap-2.5"
         actions={
-          canExport ? (
-            <Button type="button" variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
-          ) : null
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setSheetOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Add Entry
+          </Button>
         }
       >
         <SearchInput
@@ -350,29 +373,32 @@ export function TransactionTable({
             <SelectItem value="system">System</SelectItem>
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          value={dateFrom}
-          onChange={(event) => setDateFrom(event.target.value)}
-          className="w-40"
-          aria-label="From date"
-        />
-        <Input
-          type="date"
-          value={dateTo}
-          onChange={(event) => setDateTo(event.target.value)}
-          className="w-40"
-          aria-label="To date"
-        />
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setSheetOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Add entry
-        </Button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">From</span>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="w-36"
+            aria-label="From date"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">To</span>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="w-36"
+            aria-label="To date"
+          />
+        </div>
+        {canExport ? (
+          <Button type="button" variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        ) : null}
       </DataTableToolbar>
 
       {filtered.length === 0 ? (

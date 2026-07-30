@@ -85,21 +85,25 @@ export function AccountFormSheet({
       <ModalCardContent size="lg">
         <ModalCardHeader>
           <ModalCardTitle>
-            {isEdit ? "Edit account" : "Add account"}
+            {isEdit ? "Update Bank Account" : "Add New Bank Account"}
           </ModalCardTitle>
         </ModalCardHeader>
         <form
           onSubmit={onSubmit}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <ModalCardBody className="space-y-4">
+          <ModalCardBody className="space-y-5">
             <FormField
-              label="Name"
+              label="Account Name"
               htmlFor="name"
               required
               error={form.formState.errors.name?.message}
             >
-              <Input id="name" {...form.register("name")} />
+              <Input
+                id="name"
+                placeholder="Enter account name"
+                {...form.register("name")}
+              />
             </FormField>
             <FormField
               label="Description"
@@ -109,36 +113,46 @@ export function AccountFormSheet({
               <Textarea
                 id="description"
                 rows={3}
+                placeholder="Enter account description (optional)"
                 {...form.register("description")}
               />
             </FormField>
             <FormField
-              label="Opening balance"
+              label="Opening Balance"
               htmlFor="openingBalance"
               required
               error={form.formState.errors.openingBalance?.message}
             >
               <Input
                 id="openingBalance"
+                placeholder="0.00"
                 {...bindDecimalInput(form, "openingBalance", {
                   placeholder: "0.00",
                 })}
               />
             </FormField>
             {isEdit && account && (
-              <FormField label="Current balance">
+              <FormField label="Current Balance">
                 <p className="text-sm font-medium tabular-nums">
                   {account.currentBalance.toFixed(2)}
                 </p>
               </FormField>
             )}
-            <FormField label="Active">
-              <Switch
-                checked={form.watch("isActive")}
-                onCheckedChange={(checked) =>
-                  form.setValue("isActive", checked)
-                }
-              />
+            <FormField
+              label="Active Status"
+              hint="Inactive accounts are hidden from active transaction entry."
+            >
+              <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2.5">
+                <p className="text-sm text-foreground">
+                  {form.watch("isActive") ? "Active account" : "Inactive account"}
+                </p>
+                <Switch
+                  checked={form.watch("isActive")}
+                  onCheckedChange={(checked) =>
+                    form.setValue("isActive", checked)
+                  }
+                />
+              </div>
             </FormField>
           </ModalCardBody>
           <ModalCardFooter>
@@ -156,7 +170,7 @@ export function AccountFormSheet({
                   Saving…
                 </>
               ) : (
-                "Save"
+                isEdit ? "Update Account" : "Save Account"
               )}
             </Button>
           </ModalCardFooter>

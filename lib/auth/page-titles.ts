@@ -46,6 +46,10 @@ export function getPageTitle(pathname: string): string {
     return "Supplier Details";
   }
 
+  if (segments[0] === "accounts" && segments[1]) {
+    return "Account Details";
+  }
+
   if (segments[0] === "sales" && segments[1] && segments[1] !== "receipt") {
     if (segments[2] === "receipt") return "Receipt";
     return "Bill Details";

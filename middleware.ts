@@ -9,9 +9,10 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except static assets and image optimization.
-     * Auth route guards are added in Phase 2.
+     * Skip Next internals (HMR, chunks, image opt, tooling) and static files.
+     * Matching `_next/static` / `_next/image` alone still intercepts
+     * `/_next/webpack-hmr` and breaks LAN / unauthenticated loads.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/|__nextjs|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

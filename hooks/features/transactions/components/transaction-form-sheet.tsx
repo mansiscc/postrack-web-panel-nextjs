@@ -16,6 +16,7 @@ import {
 } from "@/hooks/features/transactions/schema";
 import type { TransactionListItem } from "@/hooks/features/transactions/types";
 import { FormField } from "@/components/forms/form-field";
+import { CategoryTypeSelector } from "@/components/forms/category-type-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -122,76 +123,107 @@ export function TransactionFormSheet({
       <ModalCardContent size="lg">
         <ModalCardHeader>
           <ModalCardTitle>
-            {isEdit ? "Edit manual entry" : "Add manual entry"}
+            {isEdit ? "Update Entry" : "Add New Entry"}
           </ModalCardTitle>
         </ModalCardHeader>
         <form
           onSubmit={onSubmit}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <ModalCardBody className="space-y-4">
+          <ModalCardBody className="space-y-5">
             <FormField
-              label="Type"
+              label="Entry Type"
               required
               error={form.formState.errors.entryType?.message}
             >
-              <Select
+              <CategoryTypeSelector
                 value={form.watch("entryType")}
-                onValueChange={(value: "income" | "expense") =>
+                onChange={(value) =>
                   form.setValue("entryType", value)
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="income">Income</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
-                </SelectContent>
-              </Select>
+              />
             </FormField>
-            <FormField
-              label="Account"
-              required
-              error={form.formState.errors.accountId?.message}
-            >
-              <Select
-                value={form.watch("accountId")}
-                onValueChange={(value) => form.setValue("accountId", value)}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                label="Payment Account"
+                required
+                error={form.formState.errors.accountId?.message}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField
-              label="Category"
-              required
-              error={form.formState.errors.categoryId?.message}
-            >
-              <Select
-                value={form.watch("categoryId")}
-                onValueChange={(value) => form.setValue("categoryId", value)}
+                <Select
+                  value={form.watch("accountId")}
+                  onValueChange={(value) => form.setValue("accountId", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField
+                label={entryType === "income" ? "Income Category" : "Expense Category"}
+                required
+                error={form.formState.errors.categoryId?.message}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
+                <Select
+                  value={form.watch("categoryId")}
+                  onValueChange={(value) => form.setValue("categoryId", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        entryType === "income"
+                          ? "Select income category"
+                          : "Select expense category"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                label="Entry Date"
+                htmlFor="entryDate"
+                required
+                error={form.formState.errors.entryDate?.message}
+              >
+                <Input id="entryDate" type="date" {...form.register("entryDate")} />
+              </FormField>
+              <FormField
+                label="Payment Mode"
+                error={form.formState.errors.paymentMode?.message}
+              >
+                <Select
+                  value={form.watch("paymentMode") ?? "Cash"}
+                  onValueChange={(value: "Cash" | "UPI" | "Card" | "Mixed") =>
+                    form.setValue("paymentMode", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="UPI">UPI</SelectItem>
+                    <SelectItem value="Card">Card</SelectItem>
+                    <SelectItem value="Mixed">Mixed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </div>
             <FormField
               label="Amount"
               htmlFor="amount"
@@ -200,44 +232,21 @@ export function TransactionFormSheet({
             >
               <Input
                 id="amount"
+                placeholder="Enter amount"
                 {...bindDecimalInput(form, "amount", { placeholder: "0.00" })}
               />
-            </FormField>
-            <FormField
-              label="Date"
-              htmlFor="entryDate"
-              required
-              error={form.formState.errors.entryDate?.message}
-            >
-              <Input id="entryDate" type="date" {...form.register("entryDate")} />
-            </FormField>
-            <FormField
-              label="Payment mode"
-              error={form.formState.errors.paymentMode?.message}
-            >
-              <Select
-                value={form.watch("paymentMode") ?? "Cash"}
-                onValueChange={(value: "Cash" | "UPI" | "Card" | "Mixed") =>
-                  form.setValue("paymentMode", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="UPI">UPI</SelectItem>
-                  <SelectItem value="Card">Card</SelectItem>
-                  <SelectItem value="Mixed">Mixed</SelectItem>
-                </SelectContent>
-              </Select>
             </FormField>
             <FormField
               label="Remarks"
               htmlFor="remarks"
               error={form.formState.errors.remarks?.message}
             >
-              <Textarea id="remarks" rows={3} {...form.register("remarks")} />
+              <Textarea
+                id="remarks"
+                rows={3}
+                placeholder="Add notes for this entry (optional)"
+                {...form.register("remarks")}
+              />
             </FormField>
           </ModalCardBody>
           <ModalCardFooter>
@@ -255,7 +264,7 @@ export function TransactionFormSheet({
                   Saving…
                 </>
               ) : (
-                "Save"
+                isEdit ? "Update Entry" : "Save Entry"
               )}
             </Button>
           </ModalCardFooter>
