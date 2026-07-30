@@ -187,10 +187,6 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
         <DataTable
           columns={columns}
           data={filtered}
-          onRowClick={(row) => {
-            setEditing(row);
-            setSheetOpen(true);
-          }}
         />
       )}
 

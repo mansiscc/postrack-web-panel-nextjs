@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { createPurchaseSchema } from "@/hooks/features/purchases/schema";
 import { requireModuleAccess } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
+import { getProductBatchesWithStock } from "@/repositories/products.repository";
 import {
   createPurchaseRecord,
   getPurchaseDetail,
@@ -51,4 +53,10 @@ export async function createPurchaseAction(
 export async function getPurchaseDetailsAction(id: string) {
   await requireModuleAccess("purchases");
   return getPurchaseDetail(id);
+}
+
+export async function getPurchaseProductBatchesAction(productId: string) {
+  await requireModuleAccess("purchases");
+  const supabase = await createClient();
+  return getProductBatchesWithStock(supabase, productId);
 }

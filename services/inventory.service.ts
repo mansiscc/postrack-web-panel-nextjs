@@ -1,42 +1,78 @@
 import { listProducts } from "@/repositories/products.repository";
 import { createClient } from "@/lib/supabase/server";
 
-export type InventoryOverview = {
-  totalProducts: number;
-  totalStockUnits: number;
-  totalStockValue: number;
-  lowStockCount: number;
-  outOfStockCount: number;
-  inactiveCount: number;
+export type InventoryProductLine = {
+  id: string;
+  name: string;
+  stockQuantity: number;
+  lowStockAlertQty: number;
+  unit: string | null;
+  categoryName: string | null;
 };
 
-export async function getInventoryOverview() {
+export type InventoryOverview = {
+  totalProducts: number;
+  activeProducts: number;
+  inactiveProducts: number;
+  inStockCount: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  lowStockProducts: InventoryProductLine[];
+  outOfStockProducts: InventoryProductLine[];
+  inactiveProductLines: InventoryProductLine[];
+};
+
+function toLine(product: {
+  id: string;
+  name: string;
+  stock_quantity: number | null;
+  low_stock_alert_qty: number | null;
+  unit: string | null;
+  category_name: string | null;
+}): InventoryProductLine {
+  return {
+    id: product.id,
+    name: product.name,
+    stockQuantity: product.stock_quantity ?? 0,
+    lowStockAlertQty: product.low_stock_alert_qty ?? 0,
+    unit: product.unit,
+    categoryName: product.category_name,
+  };
+}
+
+export async function getInventoryOverview(): Promise<InventoryOverview> {
   const supabase = await createClient();
   const products = await listProducts(supabase, { status: "all" });
+  const activeList = products.filter((p) => !p.is_deleted);
 
-  const activeProducts = products.filter((product) => !product.is_deleted);
-  const overview: InventoryOverview = {
-    totalProducts: activeProducts.filter((p) => p.is_active).length,
-    totalStockUnits: activeProducts.reduce(
-      (sum, p) => sum + (p.stock_quantity ?? 0),
-      0,
-    ),
-    totalStockValue: activeProducts.reduce(
-      (sum, p) =>
-        sum + (p.stock_quantity ?? 0) * (p.purchase_price ?? 0),
-      0,
-    ),
-    lowStockCount: activeProducts.filter(
-      (p) =>
-        p.is_active &&
-        (p.stock_quantity ?? 0) > 0 &&
-        (p.stock_quantity ?? 0) <= (p.low_stock_alert_qty ?? 0),
-    ).length,
-    outOfStockCount: activeProducts.filter(
-      (p) => p.is_active && (p.stock_quantity ?? 0) <= 0,
-    ).length,
-    inactiveCount: activeProducts.filter((p) => !p.is_active).length,
+  const activeProducts = activeList.filter((p) => p.is_active);
+  const inactiveProducts = activeList.filter((p) => !p.is_active);
+
+  const inStock = activeProducts.filter(
+    (p) => (p.stock_quantity ?? 0) > (p.low_stock_alert_qty ?? 0),
+  );
+  const lowStock = activeProducts.filter((p) => {
+    const qty = p.stock_quantity ?? 0;
+    const alert = p.low_stock_alert_qty ?? 0;
+    return qty > 0 && qty <= alert;
+  });
+  const outOfStock = activeProducts.filter((p) => (p.stock_quantity ?? 0) <= 0);
+
+  return {
+    totalProducts: activeList.length,
+    activeProducts: activeProducts.length,
+    inactiveProducts: inactiveProducts.length,
+    inStockCount: inStock.length,
+    lowStockCount: lowStock.length,
+    outOfStockCount: outOfStock.length,
+    lowStockProducts: [...lowStock]
+      .sort((a, b) => (a.stock_quantity ?? 0) - (b.stock_quantity ?? 0))
+      .map(toLine),
+    outOfStockProducts: [...outOfStock]
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+      .map(toLine),
+    inactiveProductLines: [...inactiveProducts]
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+      .map(toLine),
   };
-
-  return { overview, products: activeProducts };
 }

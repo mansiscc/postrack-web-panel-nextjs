@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Truck } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 import { useTableRefresh } from "@/hooks/use-table-refresh";
@@ -11,7 +12,6 @@ import {
   deleteSupplierAction,
   restoreSupplierAction,
 } from "@/hooks/features/suppliers/actions";
-import { SupplierDetailSheet } from "@/hooks/features/suppliers/components/supplier-detail-sheet";
 import { SupplierFormSheet } from "@/hooks/features/suppliers/components/supplier-form-sheet";
 import type { SupplierListItem } from "@/hooks/features/suppliers/types";
 import { DataTable } from "@/components/data-table/data-table";
@@ -21,7 +21,6 @@ import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
-import { StatusBadge } from "@/components/forms/status-badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/utils/currency";
 
@@ -32,11 +31,10 @@ type SupplierTableProps = {
 
 export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
   const refresh = useTableRefresh();
+  const router = useRouter();
   const [items, setItems] = useState(suppliers);
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [selected, setSelected] = useState<SupplierListItem | null>(null);
   const [editing, setEditing] = useState<SupplierListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SupplierListItem | null>(null);
   const [, startTransition] = useTransition();
@@ -134,17 +132,6 @@ export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
         ),
       },
       {
-        accessorKey: "isDeleted",
-        header: "Status",
-        cell: ({ row }) => (
-          <StatusBadge
-            status={row.original.isDeleted ? "deleted" : "active"}
-            label={row.original.isDeleted ? "Deleted" : "Active"}
-            showDot
-          />
-        ),
-      },
-      {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
@@ -214,8 +201,7 @@ export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
           columns={columns}
           data={filtered}
           onRowClick={(row) => {
-            setSelected(row);
-            setDetailOpen(true);
+            router.push(`/suppliers/${row.id}`);
           }}
         />
       )}
@@ -225,16 +211,6 @@ export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
         onOpenChange={setFormOpen}
         supplier={editing}
         onSuccess={refresh}
-      />
-
-      <SupplierDetailSheet
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        supplier={selected}
-        onEdit={(supplier) => {
-          setEditing(supplier);
-          setFormOpen(true);
-        }}
       />
 
       <ConfirmDialog

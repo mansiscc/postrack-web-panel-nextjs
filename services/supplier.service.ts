@@ -38,7 +38,28 @@ export async function getSupplierDetail(supplierId: string) {
     getSupplierById(supabase, supplierId),
     listSupplierPurchases(supabase, supplierId),
   ]);
-  return { supplier, purchases };
+
+  const purchaseSummary =
+    purchases.length === 0
+      ? null
+      : {
+          totalEntries: purchases.length,
+          totalItems: purchases.reduce(
+            (sum, purchase) => sum + (purchase.total_items ?? 0),
+            0,
+          ),
+          totalAmount: purchases.reduce(
+            (sum, purchase) => sum + Number(purchase.total_amount ?? 0),
+            0,
+          ),
+          lastPurchaseDate: purchases.reduce<string | null>((latest, purchase) => {
+            if (!purchase.date) return latest;
+            if (!latest || purchase.date > latest) return purchase.date;
+            return latest;
+          }, null),
+        };
+
+  return { supplier, purchases, purchaseSummary };
 }
 
 export async function createSupplierRecord(

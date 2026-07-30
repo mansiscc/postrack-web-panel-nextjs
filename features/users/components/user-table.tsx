@@ -25,8 +25,6 @@ import { SearchInput } from "@/components/forms/search-input";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -35,6 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+type UserStatusFilter = "all" | "active" | "inactive" | "deleted";
 
 type UserTableProps = {
   users: UserListItem[];
@@ -45,8 +45,7 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
   const refresh = useTableRefresh();
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("all");
-  const [status, setStatus] = useState("all");
-  const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [status, setStatus] = useState<UserStatusFilter>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<UserListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserListItem | null>(null);
@@ -55,15 +54,18 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
 
   const filtered = useMemo(() => {
     return users.filter((item) => {
-      const matchesDeleted = includeDeleted || !item.isDeleted;
       const matchesSearch =
         item.fullName.toLowerCase().includes(search.toLowerCase()) ||
         item.email.toLowerCase().includes(search.toLowerCase());
       const matchesRole = role === "all" || item.role === role;
-      const matchesStatus = status === "all" || item.status === status;
-      return matchesDeleted && matchesSearch && matchesRole && matchesStatus;
+      const matchesStatus =
+        (status === "all" && !item.isDeleted) ||
+        (status === "deleted" && item.isDeleted) ||
+        (status === "active" && !item.isDeleted && item.status === "Active") ||
+        (status === "inactive" && !item.isDeleted && item.status === "Inactive");
+      return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [users, search, role, status, includeDeleted]);
+  }, [users, search, role, status]);
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -232,24 +234,20 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
             <SelectItem value="Staff">Staff</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={status} onValueChange={setStatus}>
+        <Select
+          value={status}
+          onValueChange={(value) => setStatus(value as UserStatusFilter)}
+        >
           <SelectTrigger className="h-10 w-32.5">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All status</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Inactive">Inactive</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="deleted">Deleted</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="includeDeleted"
-            checked={includeDeleted}
-            onCheckedChange={(checked) => setIncludeDeleted(checked === true)}
-          />
-          <Label htmlFor="includeDeleted">Show deleted</Label>
-        </div>
       </DataTableToolbar>
 
       {filtered.length === 0 ? (
@@ -274,12 +272,6 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
         <DataTable
           columns={columns}
           data={filtered}
-          onRowClick={(row) => {
-            if (!row.isDeleted) {
-              setEditing(row);
-              setSheetOpen(true);
-            }
-          }}
         />
       )}
 

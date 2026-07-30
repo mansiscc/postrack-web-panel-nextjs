@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  bindDecimalInput,
   bindEmailInput,
   bindGstinInput,
   bindPhoneInput,
@@ -82,16 +81,27 @@ export function SupplierFormSheet({
   }, [open, supplier, form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
+    const payload = {
+      ...values,
+      openingBalance: isEdit
+        ? (supplier?.openingBalance ?? values.openingBalance ?? 0)
+        : 0,
+    };
+
     const result = isEdit
-      ? await updateSupplierAction(supplier!.id, values)
-      : await createSupplierAction(values);
+      ? await updateSupplierAction(supplier!.id, payload)
+      : await createSupplierAction(payload);
 
     if (!result.success) {
       toast.error(result.error);
       return;
     }
 
-    toast.success(isEdit ? "Supplier updated" : "Supplier created");
+    toast.success(
+      isEdit
+        ? "Supplier updated successfully"
+        : "Supplier saved successfully",
+    );
     onOpenChange(false);
     onSuccess();
   });
@@ -101,7 +111,7 @@ export function SupplierFormSheet({
       <ModalCardContent size="lg">
         <ModalCardHeader>
           <ModalCardTitle>
-            {isEdit ? "Edit supplier" : "Add supplier"}
+            {isEdit ? "Edit Supplier" : "Add Supplier"}
           </ModalCardTitle>
         </ModalCardHeader>
         <form
@@ -110,43 +120,72 @@ export function SupplierFormSheet({
         >
           <ModalCardBody className="space-y-4">
             <FormField
-              label="Supplier name"
+              label="Supplier Name"
               htmlFor="supplierName"
               required
               error={form.formState.errors.supplierName?.message}
             >
-              <Input id="supplierName" {...form.register("supplierName")} />
+              <Input
+                id="supplierName"
+                placeholder="Enter supplier name"
+                autoComplete="organization"
+                {...form.register("supplierName")}
+              />
             </FormField>
-            <FormField label="Contact person" htmlFor="contactPerson">
-              <Input id="contactPerson" {...form.register("contactPerson")} />
+
+            <FormField label="Contact Person Name" htmlFor="contactPerson">
+              <Input
+                id="contactPerson"
+                placeholder="Enter contact person name"
+                autoComplete="name"
+                {...form.register("contactPerson")}
+              />
             </FormField>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Phone" htmlFor="phone">
-                <Input id="phone" {...bindPhoneInput(form, "phone")} />
+              <FormField
+                label="Phone"
+                htmlFor="phone"
+                error={form.formState.errors.phone?.message}
+              >
+                <Input
+                  id="phone"
+                  {...bindPhoneInput(form, "phone", {
+                    placeholder: "Phone (optional)",
+                  })}
+                />
               </FormField>
               <FormField
                 label="Email"
                 htmlFor="email"
                 error={form.formState.errors.email?.message}
               >
-                <Input id="email" {...bindEmailInput(form, "email")} />
+                <Input
+                  id="email"
+                  placeholder="Email (optional)"
+                  {...bindEmailInput(form, "email")}
+                />
               </FormField>
             </div>
+
+            <FormField label="Address" htmlFor="address">
+              <Textarea
+                id="address"
+                rows={3}
+                placeholder="Address (optional)"
+                {...form.register("address")}
+              />
+            </FormField>
+
             <FormField
-              label="GST number"
+              label="GST Number"
               htmlFor="gstNumber"
               error={form.formState.errors.gstNumber?.message}
             >
-              <Input id="gstNumber" {...bindGstinInput(form, "gstNumber")} />
-            </FormField>
-            <FormField label="Address" htmlFor="address">
-              <Textarea id="address" rows={3} {...form.register("address")} />
-            </FormField>
-            <FormField label="Opening balance" htmlFor="openingBalance">
               <Input
-                id="openingBalance"
-                {...bindDecimalInput(form, "openingBalance", {
-                  placeholder: "0.00",
+                id="gstNumber"
+                {...bindGstinInput(form, "gstNumber", {
+                  placeholder: "GST number (optional)",
                 })}
               />
             </FormField>
@@ -165,8 +204,10 @@ export function SupplierFormSheet({
                   <Loader2 className="animate-spin" />
                   Saving…
                 </>
+              ) : isEdit ? (
+                "Update Supplier"
               ) : (
-                "Save"
+                "Save Supplier"
               )}
             </Button>
           </ModalCardFooter>

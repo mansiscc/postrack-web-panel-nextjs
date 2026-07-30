@@ -396,12 +396,6 @@ export function TransactionTable({
         <DataTable
           columns={columns}
           data={filtered}
-          onRowClick={(row) => {
-            if (canEditDelete && row.isManual) {
-              setEditing(row);
-              setSheetOpen(true);
-            }
-          }}
         />
       )}
 

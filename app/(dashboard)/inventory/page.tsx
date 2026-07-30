@@ -5,27 +5,21 @@ import { getInventoryOverview } from "@/services/inventory.service";
 type InventoryPageProps = {
   searchParams: Promise<{
     stock?: string;
-    q?: string;
   }>;
 };
 
 export default async function InventoryPage({ searchParams }: InventoryPageProps) {
   await requireModuleAccess("inventory");
   const params = await searchParams;
-  const stock =
-    params.stock === "in_stock" ||
+  const initialFocus =
     params.stock === "low_stock" ||
-    params.stock === "out_of_stock"
+    params.stock === "out_of_stock" ||
+    params.stock === "inactive"
       ? params.stock
-      : "all";
-  const { overview, products } = await getInventoryOverview();
+      : null;
+  const overview = await getInventoryOverview();
 
   return (
-    <InventoryOverviewPanel
-      overview={overview}
-      products={products}
-      initialStock={stock}
-      initialSearch={params.q?.trim() ?? ""}
-    />
+    <InventoryOverviewPanel overview={overview} initialFocus={initialFocus} />
   );
 }

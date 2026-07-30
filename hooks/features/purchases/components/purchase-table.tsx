@@ -1,14 +1,11 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Plus, ShoppingBag } from "lucide-react";
-import Link from "next/link";
+import { Plus, ShoppingBag } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
-
-import { exportPurchasesListCsvAction } from "@/hooks/features/analytics/actions";
 
 import { PurchaseDetailSheet } from "@/hooks/features/purchases/components/purchase-detail-sheet";
+import { PurchaseFormSheet } from "@/hooks/features/purchases/components/purchase-form-sheet";
 import type { PurchaseListItem } from "@/hooks/features/purchases/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
@@ -18,25 +15,33 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import type { AccountRow } from "@/repositories/accounts.repository";
+import type { ProductListRow } from "@/repositories/products.repository";
+import type { SupplierListRow } from "@/repositories/suppliers.repository";
 import { formatCurrency, formatNumber } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
-import { downloadCsv } from "@/utils/csv";
 
 type PurchaseTableProps = {
   purchases: PurchaseListItem[];
   total: number;
-  canExport?: boolean;
+  formOptions: {
+    suppliers: SupplierListRow[];
+    products: ProductListRow[];
+    accounts: AccountRow[];
+    defaultAccountId: string | null;
+  };
 };
 
 export function PurchaseTable({
   purchases,
   total,
-  canExport = false,
+  formOptions,
 }: PurchaseTableProps) {
   const [items] = useState(purchases);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<PurchaseListItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
@@ -74,10 +79,7 @@ export function PurchaseTable({
       {
         accessorKey: "totalItems",
         header: ({ column }) => (
-          <DataTableColumnHeader
-            column={column}
-            title="Items"
-          />
+          <DataTableColumnHeader column={column} title="Items" />
         ),
         cell: ({ row }) => (
           <div className="tabular-nums">
@@ -88,10 +90,7 @@ export function PurchaseTable({
       {
         accessorKey: "totalAmount",
         header: ({ column }) => (
-          <DataTableColumnHeader
-            column={column}
-            title="Amount"
-          />
+          <DataTableColumnHeader column={column} title="Amount" />
         ),
         cell: ({ row }) => (
           <div className="tabular-nums font-medium">
@@ -108,33 +107,14 @@ export function PurchaseTable({
     [],
   );
 
-  const handleExport = async () => {
-    const result = await exportPurchasesListCsvAction();
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    downloadCsv(result.data.filename, result.data.csv);
-  };
-
   return (
     <>
       <DataTableToolbar
         actions={
-          <>
-            {canExport && (
-              <Button type="button" variant="outline" onClick={handleExport}>
-                <Download className="h-4 w-4" />
-                Export CSV
-              </Button>
-            )}
-            <Button type="button" asChild>
-              <Link href="/purchases/new">
-                <Plus />
-                New purchase
-              </Link>
-            </Button>
-          </>
+          <Button type="button" onClick={() => setFormOpen(true)}>
+            <Plus />
+            New purchase
+          </Button>
         }
       >
         <SearchInput
@@ -150,11 +130,9 @@ export function PurchaseTable({
           title="No purchases found"
           description="Record your first stock-in entry to update inventory."
           action={
-            <Button type="button" asChild>
-              <Link href="/purchases/new">
-                <Plus />
-                New purchase
-              </Link>
+            <Button type="button" onClick={() => setFormOpen(true)}>
+              <Plus />
+              New purchase
             </Button>
           }
         />
@@ -176,6 +154,15 @@ export function PurchaseTable({
           />
         </>
       )}
+
+      <PurchaseFormSheet
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        suppliers={formOptions.suppliers}
+        products={formOptions.products}
+        accounts={formOptions.accounts}
+        defaultAccountId={formOptions.defaultAccountId}
+      />
 
       <PurchaseDetailSheet
         open={detailOpen}

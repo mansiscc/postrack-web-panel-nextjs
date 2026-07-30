@@ -46,6 +46,12 @@ function isSalesDetailPath(pathname: string) {
   return Boolean(id) && !nested;
 }
 
+function isSupplierDetailPath(pathname: string) {
+  if (!pathname.startsWith("/suppliers/")) return false;
+  const id = pathname.slice("/suppliers/".length).split("/")[0];
+  return Boolean(id);
+}
+
 type TopbarProps = {
   onMenuClick: () => void;
 };
@@ -57,8 +63,14 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const title = chrome.title?.trim() || fallbackTitle;
   const isDashboard = pathname === "/";
   const showDetailBack =
-    isProductDetailPath(pathname) || isSalesDetailPath(pathname);
-  const detailBackHref = isSalesDetailPath(pathname) ? "/sales" : "/products";
+    isProductDetailPath(pathname) ||
+    isSalesDetailPath(pathname) ||
+    isSupplierDetailPath(pathname);
+  const detailBackHref = isSalesDetailPath(pathname)
+    ? "/sales"
+    : isSupplierDetailPath(pathname)
+      ? "/suppliers"
+      : "/products";
 
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border/70 bg-card px-4 shadow-card-sm lg:gap-3 lg:px-6">

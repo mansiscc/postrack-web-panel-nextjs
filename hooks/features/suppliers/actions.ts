@@ -65,6 +65,7 @@ export async function updateSupplierAction(
     });
 
     revalidatePath("/suppliers");
+    revalidatePath(`/suppliers/${id}`);
     return actionSuccess(undefined);
   } catch (error) {
     if (error instanceof AppError) return actionError(error.message);
@@ -77,6 +78,7 @@ export async function deleteSupplierAction(id: string): Promise<ActionResult> {
     const user = await requireAdmin();
     await removeSupplier(user, id);
     revalidatePath("/suppliers");
+    revalidatePath(`/suppliers/${id}`);
     return actionSuccess(undefined);
   } catch (error) {
     return actionError(getErrorMessage(error));
@@ -88,6 +90,7 @@ export async function restoreSupplierAction(id: string): Promise<ActionResult> {
     const user = await requireAdmin();
     await restoreSupplierRecord(user, id);
     revalidatePath("/suppliers");
+    revalidatePath(`/suppliers/${id}`);
     return actionSuccess(undefined);
   } catch (error) {
     return actionError(getErrorMessage(error));
