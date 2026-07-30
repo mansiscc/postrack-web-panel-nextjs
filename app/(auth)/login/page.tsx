@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
 
+import { AuthBrandHeader } from "@/components/brand/auth-brand-header";
 import { LoginForm } from "@/hooks/features/auth/components/login-form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -15,20 +9,22 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="flex w-full max-w-md flex-col gap-4">
-      <Card className="w-full">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-semibold tracking-tight">
+    <div className="flex w-full flex-col gap-8">
+      <AuthBrandHeader />
+
+      <div className="space-y-6 rounded-2xl border border-border/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
+        <div className="space-y-1.5 text-center">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             Sign in to POSTrack
-          </CardTitle>
-          <CardDescription>
+          </h1>
+          <p className="text-sm text-muted-foreground">
             Use your store admin credentials to access the panel.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-        </CardContent>
-      </Card>
+          </p>
+        </div>
+
+        <LoginForm />
+      </div>
+
       <p className="text-center text-xs text-muted-foreground">
         <a
           href="https://postrack.in/privacy"

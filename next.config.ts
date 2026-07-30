@@ -12,6 +12,15 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  async redirects() {
+    return [
+      {
+        source: "/contact",
+        destination: "https://postrack.in/#contact",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {

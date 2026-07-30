@@ -10,6 +10,7 @@ import { getNavGroupsForUser, type NavItem } from "@/lib/auth/navigation";
 import type { SessionUser } from "@/types/auth";
 import { canAccessModule } from "@/utils/permissions";
 import { cn } from "@/lib/utils";
+import { PostrackLogo } from "@/components/brand/postrack-logo";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -155,9 +156,11 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
                 aria-label="Expand sidebar"
                 className="group relative flex size-9 items-center justify-center rounded-md hover:bg-accent/80"
               >
-                <span className="text-[13px] font-bold tracking-tight text-primary group-hover:invisible">
-                  PS
-                </span>
+                <PostrackLogo
+                  size={28}
+                  className="group-hover:invisible"
+                  priority
+                />
                 <ChevronRight className="pointer-events-none absolute size-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
               </button>
             </TooltipTrigger>
@@ -165,13 +168,16 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
           </Tooltip>
         ) : (
           <>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-bold leading-normal tracking-tight text-primary">
-                POSTrack
-              </p>
-              <p className="truncate text-[11px] leading-normal text-muted-foreground">
-                {user.companyName}
-              </p>
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <PostrackLogo size={32} priority />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-bold leading-normal tracking-tight text-primary">
+                  POSTrack
+                </p>
+                <p className="truncate text-[11px] leading-normal text-muted-foreground">
+                  {user.companyName}
+                </p>
+              </div>
             </div>
             {isDesktop ? (
               <Button

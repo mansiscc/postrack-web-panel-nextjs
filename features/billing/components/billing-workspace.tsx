@@ -64,6 +64,9 @@ export function BillingWorkspace({
   customers,
   defaultAccountId,
 }: BillingWorkspaceProps) {
+  const resolvedDefaultAccountId = defaultAccountId ?? accounts[0]?.id ?? "";
+  const accountIds = accounts.map((account) => account.id);
+
   const {
     cart,
     addItem,
@@ -71,7 +74,7 @@ export function BillingWorkspace({
     removeItem,
     clearCart,
     patchCart,
-  } = useBillingCart(companyId, defaultAccountId ?? accounts[0]?.id ?? "");
+  } = useBillingCart(companyId, resolvedDefaultAccountId, accountIds);
 
   const [search, setSearch] = useState("");
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
@@ -456,13 +459,17 @@ export function BillingWorkspace({
             <div className="space-y-1.5">
               <Label>Account</Label>
               <Select
-                value={cart.selectedAccountId}
+                value={
+                  accounts.some((account) => account.id === cart.selectedAccountId)
+                    ? cart.selectedAccountId
+                    : undefined
+                }
                 onValueChange={(value) =>
                   patchCart({ selectedAccountId: value })
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select account" />
+                  <SelectValue placeholder="Select payment account" />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.map((account) => (

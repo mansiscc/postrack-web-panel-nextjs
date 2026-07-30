@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   emptyCartState,
@@ -12,9 +12,36 @@ function storageKey(companyId: string) {
   return `postrack_cart_${companyId}`;
 }
 
-export function useBillingCart(companyId: string, defaultAccountId: string) {
+function resolveAccountId(
+  candidate: string | null | undefined,
+  defaultAccountId: string,
+  accountIds: string[],
+) {
+  if (candidate && accountIds.includes(candidate)) return candidate;
+  if (defaultAccountId && accountIds.includes(defaultAccountId)) {
+    return defaultAccountId;
+  }
+  return accountIds[0] ?? defaultAccountId ?? "";
+}
+
+export function useBillingCart(
+  companyId: string,
+  defaultAccountId: string,
+  accountIds: string[] = [],
+) {
+  const accountIdsKey = accountIds.join(",");
+  const stableAccountIds = useMemo(
+    () => (accountIdsKey ? accountIdsKey.split(",") : []),
+    [accountIdsKey],
+  );
+  const initialAccountId = resolveAccountId(
+    defaultAccountId,
+    defaultAccountId,
+    stableAccountIds,
+  );
+
   const [cart, setCart] = useState<BillingCartState>(() =>
-    emptyCartState(defaultAccountId),
+    emptyCartState(initialAccountId),
   );
   const [hydrated, setHydrated] = useState(false);
 
@@ -23,20 +50,45 @@ export function useBillingCart(companyId: string, defaultAccountId: string) {
       const raw = localStorage.getItem(storageKey(companyId));
       if (raw) {
         const parsed = JSON.parse(raw) as BillingCartState;
+        const selectedAccountId = resolveAccountId(
+          parsed.selectedAccountId,
+          defaultAccountId,
+          stableAccountIds,
+        );
         setCart({
-          ...emptyCartState(defaultAccountId),
+          ...emptyCartState(selectedAccountId),
           ...parsed,
-          selectedAccountId:
-            parsed.selectedAccountId || defaultAccountId,
+          selectedAccountId,
         });
       } else {
-        setCart(emptyCartState(defaultAccountId));
+        setCart(
+          emptyCartState(
+            resolveAccountId(defaultAccountId, defaultAccountId, stableAccountIds),
+          ),
+        );
       }
     } catch {
-      setCart(emptyCartState(defaultAccountId));
+      setCart(
+        emptyCartState(
+          resolveAccountId(defaultAccountId, defaultAccountId, stableAccountIds),
+        ),
+      );
     }
     setHydrated(true);
-  }, [companyId, defaultAccountId]);
+  }, [companyId, defaultAccountId, stableAccountIds]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    setCart((prev) => {
+      const nextAccountId = resolveAccountId(
+        prev.selectedAccountId,
+        defaultAccountId,
+        stableAccountIds,
+      );
+      if (nextAccountId === prev.selectedAccountId) return prev;
+      return { ...prev, selectedAccountId: nextAccountId };
+    });
+  }, [hydrated, defaultAccountId, stableAccountIds]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -44,10 +96,12 @@ export function useBillingCart(companyId: string, defaultAccountId: string) {
   }, [cart, companyId, hydrated]);
 
   const clearCart = useCallback(() => {
-    const next = emptyCartState(defaultAccountId);
+    const next = emptyCartState(
+      resolveAccountId(defaultAccountId, defaultAccountId, stableAccountIds),
+    );
     setCart(next);
     localStorage.removeItem(storageKey(companyId));
-  }, [companyId, defaultAccountId]);
+  }, [companyId, defaultAccountId, stableAccountIds]);
 
   const addItem = useCallback((item: Omit<CartItem, "id">) => {
     setCart((prev) => {

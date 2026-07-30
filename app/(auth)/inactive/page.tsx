@@ -4,14 +4,8 @@ import { redirect } from "next/navigation";
 
 import { logoutAction } from "@/hooks/features/auth/actions";
 import { getAuthProfile } from "@/lib/auth/session";
+import { AuthBrandHeader } from "@/components/brand/auth-brand-header";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Account suspended",
@@ -29,20 +23,25 @@ export default async function InactiveCompanyPage() {
   }
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader className="text-center">
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-destructive/10">
+    <div className="flex w-full flex-col gap-8">
+      <AuthBrandHeader />
+
+      <div className="space-y-6 rounded-2xl border border-border/60 bg-white/80 p-6 text-center shadow-sm backdrop-blur-sm sm:p-8">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10">
           <Lock className="size-6 text-destructive" strokeWidth={1.75} />
         </div>
-        <CardTitle className="text-2xl font-semibold">
-          Store account suspended
-        </CardTitle>
-        <CardDescription>
-          Access to <span className="font-medium">{profile.companyName}</span>{" "}
-          has been temporarily disabled.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 text-center">
+        <div className="space-y-1.5">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Store account suspended
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Access to{" "}
+            <span className="font-medium text-foreground">
+              {profile.companyName}
+            </span>{" "}
+            has been temporarily disabled.
+          </p>
+        </div>
         <p className="text-sm text-muted-foreground">
           Contact your POSTrack administrator or support to restore access to
           your store.
@@ -52,7 +51,7 @@ export default async function InactiveCompanyPage() {
             Sign out
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -301,6 +301,21 @@
     transition-duration: 150ms;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  /* Auth splash wave — calm vertical drift */
+  .auth-wave-float {
+    animation: auth-wave-float 8s ease-in-out infinite;
+  }
+}
+
+@keyframes auth-wave-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
