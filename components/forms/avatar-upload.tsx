@@ -1,16 +1,19 @@
 "use client";
 
-import { ImageIcon, Loader2 } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { assertImageFile } from "@/lib/uploads/client-image";
 import { cn } from "@/lib/utils";
 
 type AvatarUploadProps = {
   value?: string | null;
   onChange: (url: string | null) => void;
+  /** Local file held until Save (Android content:// equivalent). */
+  onPendingFileChange?: (file: File | null) => void;
   disabled?: boolean;
   className?: string;
   layout?: "avatar" | "banner";
@@ -24,6 +27,7 @@ type AvatarUploadProps = {
 export function AvatarUpload({
   value,
   onChange,
+  onPendingFileChange,
   disabled,
   className,
   layout = "avatar",
@@ -34,66 +38,54 @@ export function AvatarUpload({
   helpText,
 }: AvatarUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isRemoving, setIsRemoving] = useState(false);
+  const objectUrlRef = useRef<string | null>(null);
 
-  const handleFile = async (file: File) => {
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("kind", "business_logo");
-      const response = await fetch("/api/uploads/image", {
-        method: "POST",
-        body: formData,
-      });
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) {
-        toast.error(data.error ?? "Upload failed");
-        return;
-      }
-      onChange(data.url);
-      toast.success("Logo uploaded");
-    } catch {
-      toast.error("Upload failed");
-    } finally {
-      setIsUploading(false);
+  const revokeObjectUrl = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
     }
   };
 
-  const handleRemove = async () => {
-    setIsRemoving(true);
-    try {
-      const response = await fetch(
-        "/api/uploads/image?kind=business_logo",
-        { method: "DELETE" },
-      );
-      if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as {
-          error?: string;
-        };
-        console.warn(
-          "Logo delete failed:",
-          data.error ?? `status ${response.status}`,
-        );
-      }
-      onChange(null);
-    } catch {
-      onChange(null);
-    } finally {
-      setIsRemoving(false);
+  useEffect(() => () => revokeObjectUrl(), []);
+
+  // Parent reset / cancel: drop the local preview blob when value changes away.
+  useEffect(() => {
+    if (objectUrlRef.current && value !== objectUrlRef.current) {
+      revokeObjectUrl();
     }
+  }, [value]);
+
+  const handleFile = (file: File) => {
+    const validationError = assertImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    revokeObjectUrl();
+    const previewUrl = URL.createObjectURL(file);
+    objectUrlRef.current = previewUrl;
+    onPendingFileChange?.(file);
+    onChange(previewUrl);
+  };
+
+  const handleRemove = () => {
+    revokeObjectUrl();
+    onPendingFileChange?.(null);
+    onChange(null);
   };
 
   const isBanner = layout === "banner";
-  const busy = isUploading || isRemoving;
 
   return (
     <div className={cn("space-y-3", className)}>
       <div
         className={cn(
           "relative overflow-hidden rounded-xl bg-surface-variant",
-          isBanner ? "aspect-[1.8/1] w-full" : "size-20 rounded-lg border border-border",
+          isBanner
+            ? "aspect-[1.8/1] w-full"
+            : "size-20 rounded-lg border border-border",
         )}
       >
         {value ? (
@@ -106,16 +98,8 @@ export function AvatarUpload({
           />
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            {isUploading ? (
-              <Loader2 className={isBanner ? "size-7 animate-spin" : "size-6 animate-spin"} />
-            ) : (
-              <>
-                <ImageIcon className={isBanner ? "size-7" : "size-6"} />
-                {isBanner ? (
-                  <span className="text-xs">{emptyLabel}</span>
-                ) : null}
-              </>
-            )}
+            <ImageIcon className={isBanner ? "size-7" : "size-6"} />
+            {isBanner ? <span className="text-xs">{emptyLabel}</span> : null}
           </div>
         )}
       </div>
@@ -132,47 +116,31 @@ export function AvatarUpload({
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           className="hidden"
-          disabled={disabled || busy}
+          disabled={disabled}
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file) void handleFile(file);
+            if (file) handleFile(file);
             event.target.value = "";
           }}
         />
         <Button
           type="button"
           variant="outline"
-          disabled={disabled || busy}
+          disabled={disabled}
           onClick={() => inputRef.current?.click()}
           className={isBanner ? "flex-1" : undefined}
         >
-          {isUploading ? (
-            <>
-              <Loader2 className="animate-spin" />
-              Uploading…
-            </>
-          ) : value ? (
-            changeLabel
-          ) : (
-            chooseLabel
-          )}
+          {value ? changeLabel : chooseLabel}
         </Button>
         {value ? (
           <Button
             type="button"
             variant="outline"
-            disabled={disabled || busy}
-            onClick={() => void handleRemove()}
+            disabled={disabled}
+            onClick={handleRemove}
             className={isBanner ? "flex-1" : undefined}
           >
-            {isRemoving ? (
-              <>
-                <Loader2 className="animate-spin" />
-                Removing…
-              </>
-            ) : (
-              removeLabel
-            )}
+            {removeLabel}
           </Button>
         ) : null}
       </div>

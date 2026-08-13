@@ -20,6 +20,22 @@ import {
 import { actionError, actionSuccess, type ActionResult } from "@/utils/action-result";
 import { AppError, getErrorMessage } from "@/utils/errors";
 
+/** Persist only remote Cloudinary/http URLs (never blob:/local previews). */
+function requireStoredImageUrl(
+  url: string | null | undefined,
+): string | null {
+  if (!url?.trim()) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return url.trim();
+    }
+  } catch {
+    // fall through
+  }
+  throw new AppError("Image must be uploaded before saving");
+}
+
 export async function createProductAction(
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {
@@ -42,7 +58,7 @@ export async function createProductAction(
       productCategoryId: parsed.data.productCategoryId,
       openingStock: parsed.data.openingStock,
       isActive: parsed.data.isActive,
-      imageUrl: parsed.data.imageUrl,
+      imageUrl: requireStoredImageUrl(parsed.data.imageUrl),
     });
 
     revalidatePath("/products");
@@ -75,7 +91,7 @@ export async function updateProductAction(
       productCategoryId: parsed.data.productCategoryId,
       stockQuantity: parsed.data.stockQuantity,
       isActive: parsed.data.isActive,
-      imageUrl: parsed.data.imageUrl,
+      imageUrl: requireStoredImageUrl(parsed.data.imageUrl),
     });
 
     revalidatePath("/products");

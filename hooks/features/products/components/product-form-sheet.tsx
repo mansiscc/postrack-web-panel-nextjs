@@ -49,6 +49,11 @@ import {
   ModalCardHeader,
   ModalCardTitle,
 } from "@/components/ui/modal-card";
+import {
+  deleteStoredImage,
+  isRemoteImageUrl,
+  resolveImageUrlForSave,
+} from "@/lib/uploads/client-image";
 import { createId } from "@/utils/id";
 
 type CategoryOption = { id: string; name: string };
@@ -121,6 +126,8 @@ export function ProductFormSheet({
 }: ProductFormSheetProps) {
   const isEdit = Boolean(product);
   const [categoryQuery, setCategoryQuery] = useState("");
+  /** Local file preview only — uploaded on Save (Android content:// pattern). */
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   /** Stable id for Cloudinary path on create (Android generates UUID before upload). */
   const [draftProductId, setDraftProductId] = useState(() => createId());
   const form = useForm<CreateProductInput | UpdateProductInput>({
@@ -138,6 +145,9 @@ export function ProductFormSheet({
   );
 
   const uploadProductId = product?.id ?? draftProductId;
+  const previousRemoteImageUrl = isRemoteImageUrl(product?.imageUrl)
+    ? product!.imageUrl
+    : null;
 
   useEffect(() => {
     if (open) {
@@ -149,6 +159,7 @@ export function ProductFormSheet({
         setDraftProductId(createId());
       }
 
+      setPendingImageFile(null);
       form.reset(
         product
           ? {
@@ -167,19 +178,46 @@ export function ProductFormSheet({
           : emptyValues,
       );
       setCategoryQuery(categoryName);
+    } else {
+      setPendingImageFile(null);
     }
   }, [open, product, categories, form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
+    let imageUrl: string | null;
+    try {
+      imageUrl = await resolveImageUrlForSave({
+        pendingFile: pendingImageFile,
+        currentUrl: values.imageUrl,
+        kind: "product_image",
+        productId: uploadProductId,
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Image upload failed",
+      );
+      return;
+    }
+
+    const payload = { ...values, imageUrl };
     const result = isEdit
-      ? await updateProductAction(product!.id, values)
-      : await createProductAction({ ...values, id: draftProductId });
+      ? await updateProductAction(product!.id, payload)
+      : await createProductAction({ ...payload, id: draftProductId });
 
     if (!result.success) {
       toast.error(result.error);
       return;
     }
 
+    // Match Android: delete Cloudinary asset only after DB clear on save.
+    if (previousRemoteImageUrl && !imageUrl) {
+      void deleteStoredImage({
+        kind: "product_image",
+        productId: uploadProductId,
+      });
+    }
+
+    setPendingImageFile(null);
     toast.success("Product saved successfully");
     onOpenChange(false);
     onSuccess();
@@ -212,11 +250,12 @@ export function ProductFormSheet({
                   productId={uploadProductId}
                   value={form.watch("imageUrl")}
                   onChange={(url) => form.setValue("imageUrl", url)}
+                  onPendingFileChange={setPendingImageFile}
                   emptyLabel="No image selected"
                   chooseLabel="Choose Image"
                   changeLabel="Change Image"
                   removeLabel="Remove Image"
-                  helpText="Pick one image for this product. It will be stored securely in the cloud."
+                  helpText="Choose an image to preview. It uploads when you save the product."
                 />
               </ProductSectionCard>
 

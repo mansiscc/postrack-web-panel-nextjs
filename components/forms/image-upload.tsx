@@ -1,21 +1,27 @@
 "use client";
 
-import { ImageIcon, Loader2 } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  assertImageFile,
+  type ImageUploadKind,
+} from "@/lib/uploads/client-image";
 import { cn } from "@/lib/utils";
 
-export type ImageUploadKind = "business_logo" | "product_image";
+export type { ImageUploadKind };
 
 type ImageUploadProps = {
   value?: string | null;
   onChange: (url: string | null) => void;
-  /** Matches Android `ImageUploadKind` — required by admin upload API. */
+  /** Local file held until Save (Android content:// equivalent). */
+  onPendingFileChange?: (file: File | null) => void;
+  /** Matches Android `ImageUploadKind` — used when uploading on Save. */
   kind: ImageUploadKind;
-  /** Required when kind is `product_image` (Android contract). */
+  /** Required when kind is `product_image` (Android contract) at save time. */
   productId?: string | null;
   disabled?: boolean;
   className?: string;
@@ -29,6 +35,7 @@ type ImageUploadProps = {
 export function ImageUpload({
   value,
   onChange,
+  onPendingFileChange,
   kind,
   productId,
   disabled,
@@ -40,76 +47,48 @@ export function ImageUpload({
   helpText,
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isRemoving, setIsRemoving] = useState(false);
+  const objectUrlRef = useRef<string | null>(null);
 
-  const handleFile = async (file: File) => {
+  const revokeObjectUrl = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  };
+
+  useEffect(() => () => revokeObjectUrl(), []);
+
+  // Parent reset / cancel: drop the local preview blob when value changes away.
+  useEffect(() => {
+    if (objectUrlRef.current && value !== objectUrlRef.current) {
+      revokeObjectUrl();
+    }
+  }, [value]);
+
+  const handleFile = (file: File) => {
     if (kind === "product_image" && !productId?.trim()) {
-      toast.error("Product id is required before uploading an image");
+      toast.error("Product id is required before choosing an image");
       return;
     }
 
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("kind", kind);
-      if (productId?.trim()) {
-        formData.append("productId", productId.trim());
-      }
-      const response = await fetch("/api/uploads/image", {
-        method: "POST",
-        body: formData,
-      });
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) {
-        toast.error(data.error ?? "Upload failed");
-        return;
-      }
-      onChange(data.url);
-      toast.success("Image uploaded");
-    } catch {
-      toast.error("Upload failed");
-    } finally {
-      setIsUploading(false);
+    const validationError = assertImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      return;
     }
+
+    revokeObjectUrl();
+    const previewUrl = URL.createObjectURL(file);
+    objectUrlRef.current = previewUrl;
+    onPendingFileChange?.(file);
+    onChange(previewUrl);
   };
 
-  const handleRemove = async () => {
-    setIsRemoving(true);
-    try {
-      // Best-effort Cloudinary delete (same as Android after clearing the image).
-      if (kind === "product_image" && !productId?.trim()) {
-        onChange(null);
-        return;
-      }
-
-      const query = new URLSearchParams({ kind });
-      if (productId?.trim()) {
-        query.set("productId", productId.trim());
-      }
-      const response = await fetch(`/api/uploads/image?${query.toString()}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as {
-          error?: string;
-        };
-        // Still clear local preview; admin may already have no asset.
-        console.warn(
-          "Image delete failed:",
-          data.error ?? `status ${response.status}`,
-        );
-      }
-      onChange(null);
-    } catch {
-      onChange(null);
-    } finally {
-      setIsRemoving(false);
-    }
+  const handleRemove = () => {
+    revokeObjectUrl();
+    onPendingFileChange?.(null);
+    onChange(null);
   };
-
-  const busy = isUploading || isRemoving;
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -124,14 +103,8 @@ export function ImageUpload({
           />
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            {isUploading ? (
-              <Loader2 className="size-7 animate-spin" />
-            ) : (
-              <>
-                <ImageIcon className="size-7" />
-                <span className="text-xs">{emptyLabel}</span>
-              </>
-            )}
+            <ImageIcon className="size-7" />
+            <span className="text-xs">{emptyLabel}</span>
           </div>
         )}
       </div>
@@ -148,47 +121,31 @@ export function ImageUpload({
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           className="hidden"
-          disabled={disabled || busy}
+          disabled={disabled}
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file) void handleFile(file);
+            if (file) handleFile(file);
             event.target.value = "";
           }}
         />
         <Button
           type="button"
           variant="outline"
-          disabled={disabled || busy}
+          disabled={disabled}
           onClick={() => inputRef.current?.click()}
           className="flex-1"
         >
-          {isUploading ? (
-            <>
-              <Loader2 className="animate-spin" />
-              Uploading…
-            </>
-          ) : value ? (
-            changeLabel
-          ) : (
-            chooseLabel
-          )}
+          {value ? changeLabel : chooseLabel}
         </Button>
         {value ? (
           <Button
             type="button"
             variant="outline"
-            disabled={disabled || busy}
-            onClick={() => void handleRemove()}
+            disabled={disabled}
+            onClick={handleRemove}
             className="flex-1"
           >
-            {isRemoving ? (
-              <>
-                <Loader2 className="animate-spin" />
-                Removing…
-              </>
-            ) : (
-              removeLabel
-            )}
+            {removeLabel}
           </Button>
         ) : null}
       </div>

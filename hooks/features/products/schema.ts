@@ -7,6 +7,32 @@ import {
   personName,
 } from "@/lib/validation/fields";
 
+/** Form may hold a remote https URL or a local blob: preview until Save. */
+const imageUrlField = z
+  .union([
+    z
+      .string()
+      .refine(
+        (value) => {
+          try {
+            const parsed = new URL(value);
+            return (
+              parsed.protocol === "http:" ||
+              parsed.protocol === "https:" ||
+              parsed.protocol === "blob:"
+            );
+          } catch {
+            return false;
+          }
+        },
+        { message: "Invalid image URL" },
+      ),
+    z.literal(""),
+    z.null(),
+  ])
+  .optional()
+  .transform((value) => (value && value !== "" ? value : null));
+
 const productFields = z.object({
   /** Optional client-generated id so Cloudinary upload path matches the new product row. */
   id: z.string().uuid().optional(),
@@ -27,10 +53,7 @@ const productFields = z.object({
   openingStock: nonNegativeNumber("Opening stock"),
   stockQuantity: nonNegativeNumber("Stock quantity"),
   isActive: z.boolean(),
-  imageUrl: z
-    .union([z.string().url(), z.literal(""), z.null()])
-    .optional()
-    .transform((value) => (value && value !== "" ? value : null)),
+  imageUrl: imageUrlField,
 });
 
 function validateProductPricing(

@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -25,6 +26,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  deleteStoredImage,
+  isRemoteImageUrl,
+  resolveImageUrlForSave,
+} from "@/lib/uploads/client-image";
+import {
   bindAlphanumericInput,
   bindGstinInput,
   bindPhoneInput,
@@ -39,21 +45,51 @@ export function BusinessProfileForm({
   initial,
   canEdit,
 }: BusinessProfileFormProps) {
+  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   const form = useForm<BusinessProfileInput>({
     resolver: zodResolver(businessProfileSchema),
     defaultValues: initial,
   });
 
   const businessName = form.watch("businessName");
+  const previousRemoteLogoUrl = isRemoteImageUrl(initial.logoUrl)
+    ? initial.logoUrl
+    : null;
 
   const onSubmit = form.handleSubmit(async (values) => {
+    let logoUrl: string | null;
+    try {
+      logoUrl = await resolveImageUrlForSave({
+        pendingFile: pendingLogoFile,
+        currentUrl: values.logoUrl,
+        kind: "business_logo",
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Logo upload failed",
+      );
+      return;
+    }
+
     const result = await updateBusinessProfileAction({
       ...values,
+      logoUrl: logoUrl ?? "",
       invoicePrefix: values.invoicePrefix.trim().toUpperCase() || "B",
     });
     if (!result.success) {
       toast.error(result.error);
       return;
+    }
+
+    if (previousRemoteLogoUrl && !logoUrl) {
+      void deleteStoredImage({ kind: "business_logo" });
+    }
+
+    setPendingLogoFile(null);
+    if (logoUrl) {
+      form.setValue("logoUrl", logoUrl);
+    } else {
+      form.setValue("logoUrl", "");
     }
     toast.success("Business profile saved successfully");
   });
@@ -80,12 +116,13 @@ export function BusinessProfileForm({
                     layout="banner"
                     value={form.watch("logoUrl") || null}
                     onChange={(url) => form.setValue("logoUrl", url ?? "")}
+                    onPendingFileChange={setPendingLogoFile}
                     disabled={!canEdit}
                     emptyLabel="No logo selected"
                     chooseLabel="Choose Logo"
                     changeLabel="Change Logo"
                     removeLabel="Remove Logo"
-                    helpText="Pick an image from this device for the business logo preview."
+                    helpText="Choose a logo to preview. It uploads when you save."
                   />
                 </FormField>
               </div>
