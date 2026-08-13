@@ -17,9 +17,9 @@ export default async function AccountDetailsPage({
   const user = await requireModuleAccess("accounts");
   const { id } = await params;
 
-  const [accounts, ledgerRows] = await Promise.all([
+  const [accounts, ledger] = await Promise.all([
     getAccountsList(),
-    getTransactionsList({ accountId: id }),
+    getTransactionsList({ accountId: id, page: 1, pageSize: 50 }),
   ]);
   const accountRow = accounts.find((row) => row.id === id);
   if (!accountRow) notFound();
@@ -27,7 +27,7 @@ export default async function AccountDetailsPage({
   return (
     <AccountDetailsView
       account={mapAccountRow(accountRow)}
-      entries={ledgerRows.slice(0, 50).map(mapTransactionRow)}
+      entries={ledger.items.map(mapTransactionRow)}
       canManage={user.role === "Admin" || user.role === "Manager"}
     />
   );

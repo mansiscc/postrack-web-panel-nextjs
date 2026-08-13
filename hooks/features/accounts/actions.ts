@@ -82,6 +82,10 @@ export async function deleteAccountAction(id: string): Promise<ActionResult> {
 
 export async function getAccountLedgerAction(accountId: string) {
   await requireAdminOrManager();
-  const rows = await getTransactionsList({ accountId });
-  return rows.slice(0, 50);
+  const { items } = await getTransactionsList({
+    accountId,
+    page: 1,
+    pageSize: 50,
+  });
+  return items;
 }

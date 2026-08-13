@@ -2,6 +2,7 @@ import { format } from "date-fns";
 
 import { TransactionTable } from "@/hooks/features/transactions/components/transaction-table";
 import { mapTransactionRow } from "@/hooks/features/transactions/types";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
   getTransactionFormOptions,
@@ -12,9 +13,16 @@ import { dateRangePresets } from "@/utils/date";
 
 type TransactionsPageProps = {
   searchParams: Promise<{
+    q?: string;
     type?: string;
     account?: string;
+    category?: string;
+    source?: string;
     date?: string;
+    from?: string;
+    to?: string;
+    page?: string;
+    pageSize?: string;
   }>;
 };
 
@@ -23,20 +31,41 @@ export default async function TransactionsPage({
 }: TransactionsPageProps) {
   const user = await requireModuleAccess("transactions");
   const params = await searchParams;
+  const page = Math.max(1, Number(params.page) || 1);
+  const pageSize = Math.min(
+    50,
+    Math.max(10, Number(params.pageSize) || DEFAULT_PAGE_SIZE),
+  );
+  const search = params.q?.trim() ?? "";
   const entryType =
     params.type === "income" || params.type === "expense" ? params.type : "all";
   const accountId = params.account?.trim() || "all";
+  const categoryId = params.category?.trim() || "all";
+  const sourceType =
+    params.source === "manual" || params.source === "system"
+      ? params.source
+      : "all";
 
-  let initialDateFrom = "";
-  let initialDateTo = "";
-  if (params.date === "today") {
+  let dateFrom = params.from?.trim() ?? "";
+  let dateTo = params.to?.trim() ?? "";
+  if (!dateFrom && !dateTo && params.date === "today") {
     const range = dateRangePresets("today");
-    initialDateFrom = format(range.from, "yyyy-MM-dd");
-    initialDateTo = format(range.to, "yyyy-MM-dd");
+    dateFrom = format(range.from, "yyyy-MM-dd");
+    dateTo = format(range.to, "yyyy-MM-dd");
   }
 
-  const [rows, totals, options] = await Promise.all([
-    getTransactionsList(),
+  const [result, totals, options] = await Promise.all([
+    getTransactionsList({
+      page,
+      pageSize,
+      search: search || undefined,
+      entryType,
+      accountId: accountId === "all" ? undefined : accountId,
+      categoryId: categoryId === "all" ? undefined : categoryId,
+      sourceType,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    }),
     getTransactionTotalsSummary(),
     getTransactionFormOptions(),
   ]);
@@ -48,7 +77,10 @@ export default async function TransactionsPage({
 
   return (
     <TransactionTable
-      transactions={rows.map(mapTransactionRow)}
+      transactions={result.items.map(mapTransactionRow)}
+      total={result.total}
+      page={page}
+      pageSize={pageSize}
       totals={totals}
       accounts={options.accounts.map((account) => ({
         id: account.id,
@@ -65,10 +97,15 @@ export default async function TransactionsPage({
       }))}
       canEditDelete={user.role === "Admin"}
       canExport={user.role === "Admin" || user.role === "Manager"}
-      initialEntryType={entryType}
-      initialAccountId={accountId}
-      initialDateFrom={initialDateFrom}
-      initialDateTo={initialDateTo}
+      filters={{
+        search,
+        entryType,
+        accountId,
+        categoryId,
+        sourceType,
+        dateFrom,
+        dateTo,
+      }}
     />
   );
 }

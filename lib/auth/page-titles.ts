@@ -16,7 +16,6 @@ const PAGE_TITLES: Record<string, string> = {
   "account-categories": "Account Categories",
   settings: "Settings",
   "business-profile": "Business Profile",
-  receipt: "Receipt",
   new: "New Purchase",
 };
 
@@ -50,9 +49,12 @@ export function getPageTitle(pathname: string): string {
     return "Account Details";
   }
 
-  if (segments[0] === "sales" && segments[1] && segments[1] !== "receipt") {
-    if (segments[2] === "receipt") return "Receipt";
+  if (segments[0] === "sales" && segments[1]) {
     return "Bill Details";
+  }
+
+  if (segments[0] === "purchases" && segments[2] === "print-labels") {
+    return "Print QR Labels";
   }
 
   for (let i = segments.length - 1; i >= 0; i -= 1) {

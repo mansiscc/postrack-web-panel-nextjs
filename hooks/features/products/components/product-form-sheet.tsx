@@ -49,6 +49,7 @@ import {
   ModalCardHeader,
   ModalCardTitle,
 } from "@/components/ui/modal-card";
+import { createId } from "@/utils/id";
 
 type CategoryOption = { id: string; name: string };
 
@@ -120,6 +121,8 @@ export function ProductFormSheet({
 }: ProductFormSheetProps) {
   const isEdit = Boolean(product);
   const [categoryQuery, setCategoryQuery] = useState("");
+  /** Stable id for Cloudinary path on create (Android generates UUID before upload). */
+  const [draftProductId, setDraftProductId] = useState(() => createId());
   const form = useForm<CreateProductInput | UpdateProductInput>({
     resolver: zodResolver(isEdit ? updateProductSchema : createProductSchema),
     defaultValues: emptyValues,
@@ -134,11 +137,17 @@ export function ProductFormSheet({
     [categories],
   );
 
+  const uploadProductId = product?.id ?? draftProductId;
+
   useEffect(() => {
     if (open) {
       const categoryId = product?.categoryId ?? null;
       const categoryName =
         categories.find((category) => category.id === categoryId)?.name ?? "";
+
+      if (!product) {
+        setDraftProductId(createId());
+      }
 
       form.reset(
         product
@@ -164,7 +173,7 @@ export function ProductFormSheet({
   const onSubmit = form.handleSubmit(async (values) => {
     const result = isEdit
       ? await updateProductAction(product!.id, values)
-      : await createProductAction(values);
+      : await createProductAction({ ...values, id: draftProductId });
 
     if (!result.success) {
       toast.error(result.error);
@@ -199,6 +208,8 @@ export function ProductFormSheet({
             <div className="grid gap-4 xl:grid-cols-[minmax(0,280px)_minmax(0,1fr)] xl:items-start">
               <ProductSectionCard title="Product Image">
                 <ImageUpload
+                  kind="product_image"
+                  productId={uploadProductId}
                   value={form.watch("imageUrl")}
                   onChange={(url) => form.setValue("imageUrl", url)}
                   emptyLabel="No image selected"

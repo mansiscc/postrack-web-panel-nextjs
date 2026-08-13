@@ -202,7 +202,7 @@ export async function exportTransactionsListCsvAction(): Promise<
   try {
     await requireAdminOrManager();
     const supabase = await createClient();
-    const items = await listTransactions(supabase);
+    const { items } = await listTransactions(supabase);
 
     const csv = rowsToCsv(
       ["Date", "Type", "Account", "Category", "Amount", "Source", "Remarks"],

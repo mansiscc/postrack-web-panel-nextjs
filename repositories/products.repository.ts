@@ -28,6 +28,7 @@ export type ProductBatchRow = {
 };
 
 export type CreateProductRpcInput = {
+  id?: string | null;
   name: string;
   barcode?: string | null;
   purchasePrice?: number | null;
@@ -176,6 +177,7 @@ export async function createProductWithOpeningStock(
     p_low_stock_alert_qty: input.lowStockAlertQty ?? 0,
     p_product_category_id: input.productCategoryId ?? null,
     p_opening_stock: input.openingStock ?? 0,
+    p_id: input.id ?? null,
     p_is_active: input.isActive ?? true,
     p_created_by: input.createdBy ?? null,
     p_image_url: input.imageUrl ?? null,

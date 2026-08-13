@@ -11,6 +11,8 @@ import {
 
 export type TopbarChromeState = {
   title?: string | null;
+  /** Optional secondary line under the title (e.g. "1 label"). */
+  subtitle?: string | null;
   leading?: ReactNode | null;
   actions?: ReactNode | null;
 };

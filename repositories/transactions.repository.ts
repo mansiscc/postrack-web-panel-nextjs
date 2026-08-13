@@ -2,6 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
 import { mapSupabaseError } from "@/utils/errors";
+import {
+  sanitizePostgrestSearch,
+  toIlikePattern,
+} from "@/utils/postgrest-filter";
 
 export type TransactionListRow = {
   id: string;
@@ -31,7 +35,7 @@ export type TransactionTotals = {
   netBalance: number;
 };
 
-type ListParams = {
+export type TransactionListParams = {
   search?: string;
   entryType?: "all" | "income" | "expense";
   accountId?: string;
@@ -39,16 +43,30 @@ type ListParams = {
   sourceType?: "all" | "manual" | "system";
   dateFrom?: string;
   dateTo?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type TransactionListResult = {
+  items: TransactionListRow[];
+  total: number;
 };
 
 export async function listTransactions(
   supabase: SupabaseClient<Database>,
-  params: ListParams = {},
-): Promise<TransactionListRow[]> {
+  params: TransactionListParams = {},
+): Promise<TransactionListResult> {
+  const paginate = params.pageSize != null || params.page != null;
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 20;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   let query = supabase
     .from("entries")
     .select(
       "id, entry_date, entry_type, account_id, category_id, amount, remarks, source_type, payment_mode, created_at",
+      { count: "exact" },
     )
     .eq("is_deleted", false)
     .order("entry_date", { ascending: false })
@@ -80,9 +98,39 @@ export async function listTransactions(
     query = query.lte("entry_date", params.dateTo);
   }
 
-  const { data: entries, error } = await query;
+  if (params.search?.trim()) {
+    const term = sanitizePostgrestSearch(params.search);
+    if (term) {
+      const pattern = toIlikePattern(term);
+      const [{ data: matchingAccounts }, { data: matchingCategories }] =
+        await Promise.all([
+          supabase.from("accounts").select("id").ilike("name", pattern),
+          supabase
+            .from("accounting_categories")
+            .select("id")
+            .ilike("name", pattern),
+        ]);
+
+      const accountIds = (matchingAccounts ?? []).map((row) => row.id);
+      const categoryIds = (matchingCategories ?? []).map((row) => row.id);
+      const parts = [`remarks.ilike.%${term}%`];
+      if (accountIds.length) {
+        parts.push(`account_id.in.(${accountIds.join(",")})`);
+      }
+      if (categoryIds.length) {
+        parts.push(`category_id.in.(${categoryIds.join(",")})`);
+      }
+      query = query.or(parts.join(","));
+    }
+  }
+
+  const { data: entries, error, count } = paginate
+    ? await query.range(from, to)
+    : await query;
   if (error) throw mapSupabaseError(error);
-  if (!entries?.length) return [];
+  if (!entries?.length) {
+    return { items: [], total: count ?? 0 };
+  }
 
   const accountIds = [...new Set(entries.map((entry) => entry.account_id))];
   const categoryIds = [...new Set(entries.map((entry) => entry.category_id))];
@@ -102,7 +150,7 @@ export async function listTransactions(
     (categories ?? []).map((category) => [category.id, category.name]),
   );
 
-  const rows: TransactionListRow[] = entries.map((entry) => ({
+  const items: TransactionListRow[] = entries.map((entry) => ({
     id: entry.id,
     entry_date: entry.entry_date,
     entry_type: entry.entry_type,
@@ -117,17 +165,10 @@ export async function listTransactions(
     created_at: entry.created_at,
   }));
 
-  if (params.search?.trim()) {
-    const term = params.search.trim().toLowerCase();
-    return rows.filter(
-      (row) =>
-        row.account_name.toLowerCase().includes(term) ||
-        row.category_name.toLowerCase().includes(term) ||
-        (row.remarks?.toLowerCase().includes(term) ?? false),
-    );
-  }
-
-  return rows;
+  return {
+    items,
+    total: count ?? items.length,
+  };
 }
 
 export async function getTransactionById(

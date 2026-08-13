@@ -8,6 +8,8 @@ import {
 } from "@/lib/validation/fields";
 
 const productFields = z.object({
+  /** Optional client-generated id so Cloudinary upload path matches the new product row. */
+  id: z.string().uuid().optional(),
   name: personName("Product name").max(200),
   barcode: optionalProductBarcode,
   purchasePrice: optionalNumberFromInput.refine(
@@ -82,7 +84,7 @@ function validateProductPricing(
 
 export const createProductSchema = productFields.superRefine(validateProductPricing);
 export const updateProductSchema = productFields
-  .omit({ openingStock: true })
+  .omit({ openingStock: true, id: true })
   .superRefine(validateProductPricing);
 
 export type ProductFormInput = z.input<typeof productFields>;

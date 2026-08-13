@@ -31,6 +31,7 @@ export async function createProductAction(
     }
 
     const id = await createProductRecord(user, {
+      id: parsed.data.id,
       name: parsed.data.name,
       barcode: parsed.data.barcode ?? generateProductBarcode(),
       purchasePrice: parsed.data.purchasePrice,

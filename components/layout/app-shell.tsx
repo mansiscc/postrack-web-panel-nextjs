@@ -67,6 +67,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const { chrome } = useTopbarChrome();
   const fallbackTitle = getPageTitle(pathname);
   const title = chrome.title?.trim() || fallbackTitle;
+  const subtitle = chrome.subtitle?.trim() || null;
   const isDashboard = pathname === "/";
   const showDetailBack =
     isProductDetailPath(pathname) ||
@@ -104,9 +105,16 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         </Button>
       ) : null}
 
-      <h1 className="min-w-0 flex-1 truncate text-[17px] font-bold leading-normal tracking-tight text-foreground">
-        {title}
-      </h1>
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-[17px] font-bold leading-tight tracking-tight text-foreground">
+          {title}
+        </h1>
+        {subtitle ? (
+          <p className="truncate text-[12px] leading-tight text-muted-foreground">
+            {subtitle}
+          </p>
+        ) : null}
+      </div>
 
       {chrome.actions ? (
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">

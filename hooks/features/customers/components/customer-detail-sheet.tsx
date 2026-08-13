@@ -127,92 +127,89 @@ export function CustomerDetailSheet({
           </div>
         </ModalCardHeader>
 
-        <ModalCardBody className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start">
-            <div className="space-y-4">
-              <div className="overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-card">
-                <div className="space-y-3 p-4 sm:p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <p className="text-[17px] font-bold leading-snug tracking-tight">
-                        {customer?.name}
-                      </p>
-                      <p className="inline-flex items-center gap-1.5 text-[13px] font-medium">
-                        <Phone className="size-3.5 shrink-0" strokeWidth={2.2} />
-                        {customer?.phone || "No phone"}
-                      </p>
-                    </div>
-                    <span className="shrink-0">
-                      <StatusBadge
-                        status={customer?.isActive ? "active" : "inactive"}
-                        label={customer?.isActive ? "Active" : "Inactive"}
-                      />
-                    </span>
-                  </div>
-                  <div className="h-px bg-white/25" />
-                  <div className="grid gap-2 text-[13px]">
-                    <p className="inline-flex items-start gap-1.5">
-                      <Mail className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.2} />
-                      <span>{customer?.email || "No email provided"}</span>
+        <ModalCardBody className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2 md:items-start">
+            <div className="overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-card">
+              <div className="space-y-3 p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <p className="text-[17px] font-bold leading-snug tracking-tight">
+                      {customer?.name}
                     </p>
-                    <p className="inline-flex items-start gap-1.5">
-                      <MapPin className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.2} />
-                      <span>{customer?.address || "No address provided"}</span>
+                    <p className="inline-flex items-center gap-1.5 text-[13px] font-medium">
+                      <Phone className="size-3.5 shrink-0" strokeWidth={2.2} />
+                      {customer?.phone || "No phone"}
                     </p>
                   </div>
+                  <span className="shrink-0">
+                    <StatusBadge
+                      status={customer?.isActive ? "active" : "inactive"}
+                      label={customer?.isActive ? "Active" : "Inactive"}
+                    />
+                  </span>
                 </div>
-              </div>
-
-              <div className="rounded-lg bg-card p-4 shadow-card">
-                <h3 className="mb-3 text-sm font-semibold text-foreground">
-                  Billing Summary
-                </h3>
-                <div className="grid gap-2.5 sm:grid-cols-2">
-                  <div className="rounded-md bg-surface-variant px-3 py-2.5">
-                    <p className="text-[11px] font-medium text-muted-foreground">
-                      Total Bills
-                    </p>
-                    <p className="mt-1 text-[14px] font-bold tabular-nums text-foreground">
-                      {bills.length}
-                    </p>
-                  </div>
-                  <div className="rounded-md bg-surface-variant px-3 py-2.5">
-                    <p className="text-[11px] font-medium text-muted-foreground">
-                      Latest Bill
-                    </p>
-                    <p className="mt-1 text-[14px] font-bold text-foreground">
-                      {bills[0]?.bill_number || "—"}
-                    </p>
-                  </div>
+                <div className="h-px bg-white/25" />
+                <div className="grid gap-2 text-[13px]">
+                  <p className="inline-flex items-start gap-1.5">
+                    <Mail className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.2} />
+                    <span>{customer?.email || "No email provided"}</span>
+                  </p>
+                  <p className="inline-flex items-start gap-1.5">
+                    <MapPin className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.2} />
+                    <span>{customer?.address || "No address provided"}</span>
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-foreground">
-                Bill History
+            <div className="rounded-lg bg-card p-4 shadow-card">
+              <h3 className="mb-3 text-sm font-semibold text-foreground">
+                Billing Summary
               </h3>
-              {isPending ? (
-                <div className="flex justify-center rounded-lg bg-card py-8 shadow-card">
-                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                <div className="rounded-md bg-surface-variant px-3 py-2.5">
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Total Bills
+                  </p>
+                  <p className="mt-1 text-[14px] font-bold tabular-nums text-foreground">
+                    {bills.length}
+                  </p>
                 </div>
-              ) : bills.length === 0 ? (
-                <p className="rounded-lg bg-card px-4 py-8 text-sm text-muted-foreground shadow-card">
-                  No bills recorded for this customer yet.
-                </p>
-              ) : (
-                <div className="rounded-lg bg-card p-2 shadow-card sm:p-3">
-                  <DataTable
-                    columns={columns}
-                    data={bills}
-                    onRowClick={(row) => {
-                      onOpenChange(false);
-                      router.push(`/sales/${row.id}`);
-                    }}
-                  />
+                <div className="rounded-md bg-surface-variant px-3 py-2.5">
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Latest Bill
+                  </p>
+                  <p className="mt-1 text-[14px] font-bold text-foreground">
+                    {bills[0]?.bill_number || "—"}
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
+          </div>
+
+          <div className="min-w-0">
+            <h3 className="mb-2 text-sm font-semibold text-foreground">
+              Bill History
+            </h3>
+            {isPending ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : bills.length === 0 ? (
+              <p className="px-1 py-8 text-sm text-muted-foreground">
+                No bills recorded for this customer yet.
+              </p>
+            ) : (
+              <DataTable
+                className="overflow-hidden border border-border/60 bg-transparent shadow-none"
+                columns={columns}
+                data={bills}
+                onRowClick={(row) => {
+                  onOpenChange(false);
+                  router.push(`/sales/${row.id}`);
+                }}
+              />
+            )}
           </div>
         </ModalCardBody>
       </ModalCardContent>

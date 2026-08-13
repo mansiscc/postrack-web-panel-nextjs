@@ -13,6 +13,7 @@ export type StockInItemRow = Database["public"]["Tables"]["stock_in_items"]["Row
 
 export type StockInItemDetail = StockInItemRow & {
   product_name: string;
+  barcode: string | null;
   batch_name: string | null;
 };
 
@@ -108,7 +109,10 @@ export async function getStockInItems(
 
   const [{ data: products, error: productError }, batchResult] =
     await Promise.all([
-      supabase.from("products").select("id, name").in("id", productIds),
+      supabase
+        .from("products")
+        .select("id, name, barcode")
+        .in("id", productIds),
       batchIds.length
         ? supabase
             .from("product_batches")
@@ -121,17 +125,19 @@ export async function getStockInItems(
   if (batchResult.error) throw mapSupabaseError(batchResult.error);
 
   const productMap = new Map(
-    (products ?? []).map((product) => [product.id, product.name]),
+    (products ?? []).map((product) => [product.id, product]),
   );
   const batchMap = new Map(
     (batchResult.data ?? []).map((batch) => [batch.id, batch]),
   );
 
   return items.map((item) => {
+    const product = productMap.get(item.product_id);
     const batch = item.batch_id ? batchMap.get(item.batch_id) : null;
     return {
       ...item,
-      product_name: productMap.get(item.product_id) ?? "Unknown",
+      product_name: product?.name ?? "Unknown",
+      barcode: product?.barcode ?? null,
       batch_name:
         batch?.name?.trim() ||
         (batch?.batch_seq != null ? `Batch ${batch.batch_seq}` : null),

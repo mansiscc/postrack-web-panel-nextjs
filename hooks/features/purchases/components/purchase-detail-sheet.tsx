@@ -5,12 +5,16 @@ import {
   FileText,
   Loader2,
   Package,
+  Printer,
   ReceiptText,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { getPurchaseDetailsAction } from "@/hooks/features/purchases/actions";
 import type { PurchaseListItem } from "@/hooks/features/purchases/types";
+import { Button } from "@/components/ui/button";
 import {
   ModalCard,
   ModalCardBody,
@@ -48,6 +52,7 @@ export function PurchaseDetailSheet({
   onOpenChange,
   purchase,
 }: PurchaseDetailSheetProps) {
+  const router = useRouter();
   const [items, setItems] = useState<StockInItemDetail[]>([]);
   const [meta, setMeta] = useState<{
     supplierName: string;
@@ -80,6 +85,16 @@ export function PurchaseDetailSheet({
   const notesDisplay =
     meta?.notes?.trim() ||
     "No additional notes added for this stock-in.";
+
+  const handlePrintItem = (item: StockInItemDetail) => {
+    if (!purchase) return;
+    if (!item.barcode?.trim()) {
+      toast.error("Cannot print: this product has no barcode.");
+      return;
+    }
+    onOpenChange(false);
+    router.push(`/purchases/${purchase.id}/print-labels?item=${item.id}`);
+  };
 
   return (
     <ModalCard open={open} onOpenChange={onOpenChange}>
@@ -186,30 +201,51 @@ export function PurchaseDetailSheet({
                     </p>
                   ) : (
                     <ul className="divide-y divide-border/60">
-                      {items.map((item) => (
-                        <li
-                          key={item.id}
-                          className="flex items-start justify-between gap-3 px-2 py-3"
-                        >
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <p className="truncate text-[13px] font-semibold text-foreground">
-                              {item.product_name}
-                            </p>
-                            {item.batch_name ? (
-                              <span className="inline-flex rounded-md bg-warning-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground">
-                                {item.batch_name}
-                              </span>
-                            ) : null}
-                            <p className="text-[12px] tabular-nums text-muted-foreground">
-                              {formatCurrency(item.purchase_price)} ×{" "}
-                              {formatNumber(item.quantity)}
-                            </p>
-                          </div>
-                          <p className="shrink-0 text-[13px] font-semibold tabular-nums text-primary">
-                            {formatCurrency(item.row_total)}
-                          </p>
-                        </li>
-                      ))}
+                      {items.map((item) => {
+                        const hasBarcode = Boolean(item.barcode?.trim());
+                        return (
+                          <li key={item.id} className="space-y-2 px-2 py-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <p className="truncate text-[13px] font-semibold text-foreground">
+                                  {item.product_name}
+                                </p>
+                                {item.batch_name ? (
+                                  <span className="inline-flex rounded-md bg-warning-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                                    {item.batch_name}
+                                  </span>
+                                ) : null}
+                                <p className="text-[12px] tabular-nums text-muted-foreground">
+                                  {formatCurrency(item.purchase_price)} ×{" "}
+                                  {formatNumber(item.quantity)}
+                                  {!hasBarcode ? " · no barcode" : null}
+                                </p>
+                              </div>
+                              <p className="shrink-0 text-[13px] font-semibold tabular-nums text-primary">
+                                {formatCurrency(item.row_total)}
+                              </p>
+                            </div>
+                            <div className="flex justify-end">
+                              <Button
+                                type="button"
+                                size="icon-sm"
+                                variant="secondary"
+                                className="bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                                disabled={!hasBarcode}
+                                aria-label={`Print QR for ${item.product_name}`}
+                                title={
+                                  hasBarcode
+                                    ? "Print QR"
+                                    : "Add a barcode to print QR labels"
+                                }
+                                onClick={() => handlePrintItem(item)}
+                              >
+                                <Printer className="size-3.5" />
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>

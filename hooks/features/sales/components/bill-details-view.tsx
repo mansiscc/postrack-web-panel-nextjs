@@ -10,7 +10,6 @@ import {
   Printer,
   RotateCcw,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -19,6 +18,10 @@ import {
   completePaymentAction,
   processReturnAction,
 } from "@/hooks/features/billing/actions";
+import {
+  ReceiptDialog,
+  type ReceiptPreviewData,
+} from "@/hooks/features/sales/components/receipt-view";
 import {
   StatusBadge,
   billStatusLabel,
@@ -87,6 +90,10 @@ type BillDetailsViewProps = {
   detail: BillDetailsPayload;
   accounts: AccountRow[];
   defaultAccountId: string | null;
+  businessName?: string | null;
+  receiptFooter?: string | null;
+  logoUrl?: string | null;
+  showLogoOnBill?: boolean;
 };
 
 function paymentModeLabel(mode: BillRow["payment_mode"]) {
@@ -557,10 +564,15 @@ export function BillDetailsView({
   detail,
   accounts,
   defaultAccountId,
+  businessName,
+  receiptFooter,
+  logoUrl,
+  showLogoOnBill = true,
 }: BillDetailsViewProps) {
   const router = useRouter();
   const { setChrome, clearChrome } = useTopbarChrome();
   const [returnOpen, setReturnOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [isCollecting, startCollect] = useTransition();
 
   const {
@@ -584,16 +596,54 @@ export function BillDetailsView({
   const changeGiven = remainingDue < 0 ? Math.abs(remainingDue) : 0;
   const dueAmount = remainingDue > 0 ? remainingDue : 0;
 
+  const receiptData = useMemo<ReceiptPreviewData>(
+    () => ({
+      billNumber: bill.bill_number,
+      createdAt: bill.created_at,
+      customerName: detail.customerName || "Walk-in",
+      customerPhone: detail.customerPhone || "",
+      paymentMode: bill.payment_mode,
+      status: bill.status,
+      items: items.map((item) => ({
+        productName: item.product_name,
+        quantity: item.quantity,
+        rowTotal: item.row_total,
+      })),
+      subtotal: bill.subtotal_amount,
+      otherItemsAmount: bill.other_items_amount,
+      discountAmount: bill.discount_amount,
+      totalPayable: bill.total_payable_amount,
+      receivedAmount: bill.received_amount_total,
+      businessName,
+      receiptFooter,
+      logoUrl,
+      showLogoOnBill,
+    }),
+    [
+      bill,
+      businessName,
+      detail.customerName,
+      detail.customerPhone,
+      items,
+      logoUrl,
+      receiptFooter,
+      showLogoOnBill,
+    ],
+  );
+
   useEffect(() => {
     setChrome({
       title: bill.bill_number?.trim() || "—",
       actions: (
         <>
-          <Button type="button" variant="outline" size="sm" asChild>
-            <Link href={`/sales/${bill.id}/receipt`} target="_blank">
-              <Printer />
-              Receipt
-            </Link>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setReceiptOpen(true)}
+          >
+            <Printer />
+            Receipt
           </Button>
           {canReturn ? (
             <Button
@@ -610,7 +660,7 @@ export function BillDetailsView({
       ),
     });
     return () => clearChrome();
-  }, [bill.bill_number, bill.id, canReturn, setChrome, clearChrome]);
+  }, [bill.bill_number, canReturn, setChrome, clearChrome]);
 
   const handleCompletePayment = () => {
     startCollect(async () => {
@@ -838,6 +888,12 @@ export function BillDetailsView({
         accounts={accounts}
         defaultAccountId={defaultAccountId}
         onSuccess={() => router.refresh()}
+      />
+
+      <ReceiptDialog
+        open={receiptOpen}
+        onOpenChange={setReceiptOpen}
+        data={receiptData}
       />
     </>
   );

@@ -1,14 +1,10 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  ArrowLeftRight,
-  Download,
-  Plus,
-} from "lucide-react";
+import { ArrowLeftRight, Download, Plus } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -21,6 +17,7 @@ import {
 } from "@/hooks/features/transactions/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTablePagination } from "@/components/data-table/pagination";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
@@ -42,11 +39,25 @@ import type { TransactionTotals } from "@/repositories/transactions.repository";
 import { formatCurrency } from "@/utils/currency";
 import { downloadCsv } from "@/utils/csv";
 import { formatDate } from "@/utils/date";
+import { buildQueryString } from "@/utils/url-query";
 
 type FormOption = { id: string; name: string };
 
+type TransactionFilters = {
+  search: string;
+  entryType: "all" | "income" | "expense";
+  accountId: string;
+  categoryId: string;
+  sourceType: "all" | "manual" | "system";
+  dateFrom: string;
+  dateTo: string;
+};
+
 type TransactionTableProps = {
   transactions: TransactionListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
   totals: TransactionTotals;
   accounts: FormOption[];
   categories: FormOption[];
@@ -54,14 +65,14 @@ type TransactionTableProps = {
   expenseCategories: FormOption[];
   canEditDelete: boolean;
   canExport?: boolean;
-  initialEntryType?: "all" | "income" | "expense";
-  initialAccountId?: string;
-  initialDateFrom?: string;
-  initialDateTo?: string;
+  filters: TransactionFilters;
 };
 
 export function TransactionTable({
   transactions,
+  total,
+  page,
+  pageSize,
   totals,
   accounts,
   categories,
@@ -69,70 +80,47 @@ export function TransactionTable({
   expenseCategories,
   canEditDelete,
   canExport = false,
-  initialEntryType = "all",
-  initialAccountId = "all",
-  initialDateFrom = "",
-  initialDateTo = "",
+  filters,
 }: TransactionTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const refresh = useTableRefresh();
-  const [items, setItems] = useSyncedState(transactions);
-  const [search, setSearch] = useState("");
-  const [entryType, setEntryType] = useState<"all" | "income" | "expense">(
-    initialEntryType,
-  );
-  const [accountId, setAccountId] = useState(initialAccountId);
-  const [categoryId, setCategoryId] = useState("all");
-  const [sourceType, setSourceType] = useState<"all" | "manual" | "system">(
-    "all",
-  );
-  const [dateFrom, setDateFrom] = useState(initialDateFrom);
-  const [dateTo, setDateTo] = useState(initialDateTo);
+  const [isPending, startTransition] = useTransition();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<TransactionListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TransactionListItem | null>(
     null,
   );
-  const [, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    return items.filter((item) => {
-      const term = search.toLowerCase();
-      const matchesSearch =
-        !term ||
-        item.accountName.toLowerCase().includes(term) ||
-        item.categoryName.toLowerCase().includes(term) ||
-        (item.remarks?.toLowerCase().includes(term) ?? false);
-      const matchesType = entryType === "all" || item.entryType === entryType;
-      const matchesAccount =
-        accountId === "all" || item.accountId === accountId;
-      const matchesCategory =
-        categoryId === "all" || item.categoryId === categoryId;
-      const matchesSource =
-        sourceType === "all" ||
-        (sourceType === "manual" && item.isManual) ||
-        (sourceType === "system" && !item.isManual);
-      const matchesFrom = !dateFrom || item.entryDate >= dateFrom;
-      const matchesTo = !dateTo || item.entryDate <= dateTo;
-      return (
-        matchesSearch &&
-        matchesType &&
-        matchesAccount &&
-        matchesCategory &&
-        matchesSource &&
-        matchesFrom &&
-        matchesTo
-      );
+  const pushFilters = (
+    patch: Partial<TransactionFilters & { page: number; pageSize: number }>,
+  ) => {
+    const next = {
+      q: patch.search ?? filters.search,
+      type: patch.entryType ?? filters.entryType,
+      account: patch.accountId ?? filters.accountId,
+      category: patch.categoryId ?? filters.categoryId,
+      source: patch.sourceType ?? filters.sourceType,
+      from: patch.dateFrom ?? filters.dateFrom,
+      to: patch.dateTo ?? filters.dateTo,
+      page: patch.page ?? page,
+      pageSize: patch.pageSize ?? pageSize,
+    };
+    if (
+      patch.search !== undefined ||
+      patch.entryType !== undefined ||
+      patch.accountId !== undefined ||
+      patch.categoryId !== undefined ||
+      patch.sourceType !== undefined ||
+      patch.dateFrom !== undefined ||
+      patch.dateTo !== undefined
+    ) {
+      next.page = 1;
+    }
+    startTransition(() => {
+      router.push(`${pathname}${buildQueryString(next)}`);
     });
-  }, [
-    items,
-    search,
-    entryType,
-    accountId,
-    categoryId,
-    sourceType,
-    dateFrom,
-    dateTo,
-  ]);
+  };
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -142,9 +130,9 @@ export function TransactionTable({
         toast.error(result.error);
         return;
       }
-      setItems((prev) => prev.filter((row) => row.id !== deleteTarget.id));
       toast.success("Entry deleted");
       setDeleteTarget(null);
+      refresh();
     });
   };
 
@@ -187,10 +175,7 @@ export function TransactionTable({
       {
         accessorKey: "amount",
         header: ({ column }) => (
-          <DataTableColumnHeader
-            column={column}
-            title="Amount"
-          />
+          <DataTableColumnHeader column={column} title="Amount" />
         ),
         cell: ({ row }) => (
           <div
@@ -257,10 +242,7 @@ export function TransactionTable({
     {
       label: "Net Balance",
       value: formatCurrency(totals.netBalance),
-      tone:
-        totals.netBalance >= 0
-          ? "text-success"
-          : "text-destructive",
+      tone: totals.netBalance >= 0 ? "text-success" : "text-destructive",
     },
     {
       label: "Entries",
@@ -277,6 +259,15 @@ export function TransactionTable({
     }
     downloadCsv(result.data.filename, result.data.csv);
   };
+
+  const hasActiveFilters =
+    Boolean(filters.search) ||
+    filters.entryType !== "all" ||
+    filters.accountId !== "all" ||
+    filters.categoryId !== "all" ||
+    filters.sourceType !== "all" ||
+    Boolean(filters.dateFrom) ||
+    Boolean(filters.dateTo);
 
   return (
     <>
@@ -312,15 +303,15 @@ export function TransactionTable({
         }
       >
         <SearchInput
-          value={search}
-          onChange={setSearch}
+          value={filters.search}
+          onChange={(value) => pushFilters({ search: value })}
           placeholder="Search transactions…"
           className="w-full sm:max-w-xs"
         />
         <Select
-          value={entryType}
+          value={filters.entryType}
           onValueChange={(value: "all" | "income" | "expense") =>
-            setEntryType(value)
+            pushFilters({ entryType: value })
           }
         >
           <SelectTrigger className="w-32">
@@ -332,7 +323,10 @@ export function TransactionTable({
             <SelectItem value="expense">Expense</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={accountId} onValueChange={setAccountId}>
+        <Select
+          value={filters.accountId}
+          onValueChange={(value) => pushFilters({ accountId: value })}
+        >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Account" />
           </SelectTrigger>
@@ -345,7 +339,10 @@ export function TransactionTable({
             ))}
           </SelectContent>
         </Select>
-        <Select value={categoryId} onValueChange={setCategoryId}>
+        <Select
+          value={filters.categoryId}
+          onValueChange={(value) => pushFilters({ categoryId: value })}
+        >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
@@ -359,9 +356,9 @@ export function TransactionTable({
           </SelectContent>
         </Select>
         <Select
-          value={sourceType}
+          value={filters.sourceType}
           onValueChange={(value: "all" | "manual" | "system") =>
-            setSourceType(value)
+            pushFilters({ sourceType: value })
           }
         >
           <SelectTrigger className="w-36">
@@ -377,8 +374,8 @@ export function TransactionTable({
           <span className="text-xs font-medium text-muted-foreground">From</span>
           <Input
             type="date"
-            value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
+            value={filters.dateFrom}
+            onChange={(event) => pushFilters({ dateFrom: event.target.value })}
             className="w-36"
             aria-label="From date"
           />
@@ -387,8 +384,8 @@ export function TransactionTable({
           <span className="text-xs font-medium text-muted-foreground">To</span>
           <Input
             type="date"
-            value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
+            value={filters.dateTo}
+            onChange={(event) => pushFilters({ dateTo: event.target.value })}
             className="w-36"
             aria-label="To date"
           />
@@ -401,28 +398,42 @@ export function TransactionTable({
         ) : null}
       </DataTableToolbar>
 
-      {filtered.length === 0 ? (
+      {transactions.length === 0 ? (
         <EmptyState
           icon={ArrowLeftRight}
           title="No transactions yet"
-          description="Add a manual entry or complete a sale."
+          description={
+            hasActiveFilters
+              ? "No transactions match your current search or filters."
+              : "Add a manual entry or complete a sale."
+          }
           action={
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setSheetOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" />
-              Add entry
-            </Button>
+            hasActiveFilters ? undefined : (
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  setSheetOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Add entry
+              </Button>
+            )
           }
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-        />
+        <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
+          <DataTable columns={columns} data={transactions} />
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(nextPage) => pushFilters({ page: nextPage })}
+            onPageSizeChange={(nextSize) =>
+              pushFilters({ pageSize: nextSize, page: 1 })
+            }
+          />
+        </div>
       )}
 
       <TransactionFormSheet

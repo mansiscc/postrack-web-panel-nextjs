@@ -25,15 +25,9 @@ type ManualEntryInput = {
   paymentMode?: "Cash" | "UPI" | "Card" | "Mixed" | null;
 };
 
-export async function getTransactionsList(params?: {
-  search?: string;
-  entryType?: "all" | "income" | "expense";
-  accountId?: string;
-  categoryId?: string;
-  sourceType?: "all" | "manual" | "system";
-  dateFrom?: string;
-  dateTo?: string;
-}) {
+export async function getTransactionsList(
+  params?: Parameters<typeof listTransactions>[1],
+) {
   const supabase = await createClient();
   return listTransactions(supabase, params);
 }

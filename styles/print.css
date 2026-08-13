@@ -1,21 +1,37 @@
-/* Print styles for receipts — expanded in Phase 5 / Milestone 8 */
+/* Receipt print — show only `.print-area` (used by ReceiptDialog) */
 @media print {
   body * {
-    visibility: hidden;
+    visibility: hidden !important;
   }
 
   .print-area,
   .print-area * {
-    visibility: visible;
+    visibility: visible !important;
   }
 
   .print-area {
-    position: absolute;
-    inset: 0;
-    width: 100%;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
   }
 
   .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-close"] {
+    display: none !important;
+  }
+
+  nav,
+  aside,
+  header {
     display: none !important;
   }
 }

@@ -8,14 +8,12 @@ import {
   Minus,
   Percent,
   Plus,
-  Printer,
   Search,
   Smartphone,
   Split,
   Wallet,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -33,6 +31,10 @@ import {
 } from "@/hooks/features/billing/actions";
 import { useBillingCart } from "@/hooks/features/billing/hooks/use-billing-cart";
 import type { CartItem } from "@/hooks/features/billing/types";
+import {
+  ReceiptDialog,
+  type ReceiptPreviewData,
+} from "@/hooks/features/sales/components/receipt-view";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -62,7 +64,6 @@ import { calculateBillingTotals } from "@/utils/billing-calculator";
 import { formatCurrency } from "@/utils/currency";
 import { createId } from "@/utils/id";
 import { cn } from "@/lib/utils";
-import { readPrintSettings } from "@/utils/print-settings";
 
 type BillingProduct = {
   id: string;
@@ -79,6 +80,10 @@ type BillingWorkspaceProps = {
   accounts: AccountRow[];
   customers: CustomerRow[];
   defaultAccountId: string | null;
+  businessName?: string | null;
+  receiptFooter?: string | null;
+  logoUrl?: string | null;
+  showLogoOnBill?: boolean;
 };
 
 type BatchOption = {
@@ -88,10 +93,7 @@ type BatchOption = {
   quantity_remaining: number;
 };
 
-type SavedBillInfo = {
-  id: string;
-  billNumber: string | null;
-};
+type SavedBillInfo = ReceiptPreviewData;
 
 type BillingTotals = ReturnType<typeof calculateBillingTotals>;
 
@@ -101,6 +103,10 @@ export function BillingWorkspace({
   accounts,
   customers,
   defaultAccountId,
+  businessName,
+  receiptFooter,
+  logoUrl,
+  showLogoOnBill = true,
 }: BillingWorkspaceProps) {
   const resolvedDefaultAccountId = defaultAccountId ?? accounts[0]?.id ?? "";
   const accountIds = useMemo(() => accounts.map((account) => account.id), [accounts]);
@@ -246,6 +252,30 @@ export function BillingWorkspace({
     }
 
     startSave(async () => {
+      const receiptSnapshot: Omit<ReceiptPreviewData, "billNumber"> & {
+        billNumber?: string | null;
+      } = {
+        customerName: cart.customerName.trim() || "Walk-in",
+        customerPhone: cart.customerPhone.trim(),
+        items: cart.items.map((item) => ({
+          productName: item.productName,
+          quantity: item.quantity,
+          rowTotal: Number((item.unitPrice * item.quantity).toFixed(2)),
+        })),
+        subtotal: totals.subtotal,
+        otherItemsAmount: totals.otherItemsAmount,
+        discountAmount: totals.discountAmount,
+        totalPayable: totals.totalPayable,
+        receivedAmount: totals.receivedAmount,
+        paymentMode: cart.paymentMode,
+        status: totals.status,
+        createdAt: new Date().toISOString(),
+        businessName,
+        receiptFooter,
+        logoUrl,
+        showLogoOnBill,
+      };
+
       const result = await saveBillAction({
         items: cart.items.map((item) => ({
           productId: item.productId,
@@ -274,23 +304,13 @@ export function BillingWorkspace({
         return;
       }
 
-      const billInfo = {
-        id: result.data.id,
-        billNumber: result.data.billNumber,
-      };
       clearCart();
       setPaymentSheetOpen(false);
-
-      const { openReceiptAfterSave } = readPrintSettings();
-      if (openReceiptAfterSave) {
-        window.open(`/sales/${billInfo.id}/receipt`, "_blank", "noopener,noreferrer");
-        toast.success(
-          `Bill saved (${billInfo.billNumber ?? billInfo.id})`,
-        );
-        return;
-      }
-
-      setSavedBill(billInfo);
+      setSavedBill({
+        ...receiptSnapshot,
+        billNumber: result.data.billNumber,
+      });
+      queueMicrotask(() => searchRef.current?.focus());
     });
   };
 
@@ -512,45 +532,17 @@ export function BillingWorkspace({
         </DialogContent>
       </Dialog>
 
-      {/* Post-save */}
-      <Dialog
+      {/* Post-save receipt preview — WEB_UI_BLUEPRINT §12.7 */}
+      <ReceiptDialog
         open={Boolean(savedBill)}
         onOpenChange={(open) => {
-          if (!open) setSavedBill(null);
+          if (!open) {
+            setSavedBill(null);
+            queueMicrotask(() => searchRef.current?.focus());
+          }
         }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Bill saved</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {savedBill?.billNumber
-              ? `Bill ${savedBill.billNumber} was created successfully.`
-              : "Bill was created successfully."}
-          </p>
-          <DialogFooter className="gap-2 sm:justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setSavedBill(null)}
-            >
-              New bill
-            </Button>
-            {savedBill ? (
-              <Button type="button" asChild>
-                <Link
-                  href={`/sales/${savedBill.id}/receipt`}
-                  target="_blank"
-                  onClick={() => setSavedBill(null)}
-                >
-                  <Printer />
-                  Print receipt
-                </Link>
-              </Button>
-            ) : null}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        data={savedBill}
+      />
     </>
   );
 }
@@ -1269,6 +1261,50 @@ function PaymentPanel({
             <p className="text-center text-sm font-medium text-success">
               Payment settled
             </p>
+          ) : null}
+
+          {/* Android BillingSummaryActivity: waive remaining / receive remaining */}
+          {totals.remainingAmount > 0 ? (
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const nextDiscount = Number(
+                    (totals.discountAmount + totals.remainingAmount).toFixed(2),
+                  );
+                  onPatch({
+                    discountType: "AMOUNT",
+                    discountValue: nextDiscount,
+                  });
+                }}
+                className="rounded-full bg-primary-light px-3 py-2.5 text-center text-xs font-medium text-primary transition-colors hover:bg-primary-muted"
+              >
+                Give {formatCurrency(totals.remainingAmount)} discount
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (cart.paymentMode === "Mixed") {
+                    const nextCash = Number(
+                      (
+                        cart.mixedCashAmount + totals.remainingAmount
+                      ).toFixed(2),
+                    );
+                    onPatch({
+                      mixedCashAmount: nextCash,
+                      receivedAmount: Number(
+                        (nextCash + cart.mixedUpiAmount).toFixed(2),
+                      ),
+                    });
+                    return;
+                  }
+                  onPatch({ receivedAmount: totals.totalPayable });
+                }}
+                className="rounded-full bg-success/20 px-3 py-2.5 text-center text-xs font-medium text-success transition-colors hover:bg-success/30"
+              >
+                Receive {formatCurrency(totals.remainingAmount)}
+              </button>
+            </div>
           ) : null}
         </div>
 

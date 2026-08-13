@@ -35,12 +35,14 @@ export function AvatarUpload({
 }: AvatarUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const handleFile = async (file: File) => {
     setIsUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("kind", "business_logo");
       const response = await fetch("/api/uploads/image", {
         method: "POST",
         body: formData,
@@ -59,7 +61,32 @@ export function AvatarUpload({
     }
   };
 
+  const handleRemove = async () => {
+    setIsRemoving(true);
+    try {
+      const response = await fetch(
+        "/api/uploads/image?kind=business_logo",
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        console.warn(
+          "Logo delete failed:",
+          data.error ?? `status ${response.status}`,
+        );
+      }
+      onChange(null);
+    } catch {
+      onChange(null);
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
   const isBanner = layout === "banner";
+  const busy = isUploading || isRemoving;
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -79,10 +106,16 @@ export function AvatarUpload({
           />
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            <ImageIcon className={isBanner ? "size-7" : "size-6"} />
-            {isBanner ? (
-              <span className="text-xs">{emptyLabel}</span>
-            ) : null}
+            {isUploading ? (
+              <Loader2 className={isBanner ? "size-7 animate-spin" : "size-6 animate-spin"} />
+            ) : (
+              <>
+                <ImageIcon className={isBanner ? "size-7" : "size-6"} />
+                {isBanner ? (
+                  <span className="text-xs">{emptyLabel}</span>
+                ) : null}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -99,16 +132,17 @@ export function AvatarUpload({
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           className="hidden"
-          disabled={disabled || isUploading}
+          disabled={disabled || busy}
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) void handleFile(file);
+            event.target.value = "";
           }}
         />
         <Button
           type="button"
           variant="outline"
-          disabled={disabled || isUploading}
+          disabled={disabled || busy}
           onClick={() => inputRef.current?.click()}
           className={isBanner ? "flex-1" : undefined}
         >
@@ -127,11 +161,18 @@ export function AvatarUpload({
           <Button
             type="button"
             variant="outline"
-            disabled={disabled || isUploading}
-            onClick={() => onChange(null)}
+            disabled={disabled || busy}
+            onClick={() => void handleRemove()}
             className={isBanner ? "flex-1" : undefined}
           >
-            {removeLabel}
+            {isRemoving ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Removing…
+              </>
+            ) : (
+              removeLabel
+            )}
           </Button>
         ) : null}
       </div>
