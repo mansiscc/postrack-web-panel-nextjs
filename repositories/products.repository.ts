@@ -163,13 +163,42 @@ export async function getProductByBarcode(
   return data;
 }
 
+/**
+ * Next auto barcode for the current (or given) company: 0001, 0002, …
+ * Requires migration 83 (`allocate_next_product_barcode`).
+ */
+export async function allocateNextProductBarcode(
+  supabase: SupabaseClient<Database>,
+  companyId?: string | null,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("allocate_next_product_barcode", {
+    p_company_id: companyId?.trim() || null,
+  });
+
+  if (error) throw mapSupabaseError(error);
+
+  const barcode =
+    typeof data === "string" ? data.trim().replace(/^"|"$/g, "").trim() : "";
+  if (!barcode || barcode === "null") {
+    throw mapSupabaseError({
+      message: "allocate_next_product_barcode returned empty",
+      code: "UNKNOWN",
+    });
+  }
+  return barcode;
+}
+
 export async function createProductWithOpeningStock(
   supabase: SupabaseClient<Database>,
   input: CreateProductRpcInput,
 ): Promise<string> {
+  // Blank barcode → DB allocates 0001, 0002, … for this company.
+  const barcode =
+    input.barcode?.trim() || (await allocateNextProductBarcode(supabase));
+
   const { data, error } = await supabase.rpc("create_product_with_opening_stock", {
     p_name: input.name.trim(),
-    p_barcode: input.barcode?.trim() || null,
+    p_barcode: barcode,
     p_purchase_price: input.purchasePrice ?? null,
     p_selling_price: input.sellingPrice ?? null,
     p_mrp: input.mrp ?? null,

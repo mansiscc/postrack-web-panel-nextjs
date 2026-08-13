@@ -113,6 +113,8 @@ export type Database = {
           owner_email: string | null;
           owner_name: string | null;
           business_category: string | null;
+          /** Auto barcode counter. 0 means next code is 0001. */
+          product_barcode_seq: number;
           is_active: boolean;
           is_deleted: boolean;
           created_at: string;
@@ -131,6 +133,7 @@ export type Database = {
           owner_email?: string | null;
           owner_name?: string | null;
           business_category?: string | null;
+          product_barcode_seq?: number;
           is_active?: boolean;
           is_deleted?: boolean;
           created_at?: string;
@@ -149,6 +152,7 @@ export type Database = {
           owner_email?: string | null;
           owner_name?: string | null;
           business_category?: string | null;
+          product_barcode_seq?: number;
           is_active?: boolean;
           is_deleted?: boolean;
           created_at?: string;
@@ -1250,6 +1254,10 @@ export type Database = {
         Returns: boolean;
       };
       restore_user: { Args: { p_user_id: string }; Returns: Json };
+      allocate_next_product_barcode: {
+        Args: { p_company_id?: string | null };
+        Returns: string;
+      };
       create_product_with_opening_stock: {
         Args: {
           p_name: string;

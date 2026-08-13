@@ -7,7 +7,6 @@ import {
   updateProductSchema,
 } from "@/hooks/features/products/schema";
 import { requireAdmin } from "@/lib/auth/guards";
-import { generateProductBarcode } from "@/lib/validation/constants";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
   createProductRecord,
@@ -46,10 +45,11 @@ export async function createProductAction(
       return actionError(parsed.error.issues[0]?.message ?? "Invalid input");
     }
 
+    // Blank barcode → DB allocates next per-company code (0001, 0002, …).
     const id = await createProductRecord(user, {
       id: parsed.data.id,
       name: parsed.data.name,
-      barcode: parsed.data.barcode ?? generateProductBarcode(),
+      barcode: parsed.data.barcode,
       purchasePrice: parsed.data.purchasePrice,
       sellingPrice: parsed.data.sellingPrice,
       mrp: parsed.data.mrp,
