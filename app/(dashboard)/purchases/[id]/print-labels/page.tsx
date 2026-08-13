@@ -40,7 +40,10 @@ export default async function PurchasePrintLabelsPage({
     <LabelPrintView
       title="Print QR Labels"
       backHref="/purchases"
-      items={items.map(({ stockInItemId: _id, ...item }) => item)}
+      items={items.map(({ stockInItemId, ...item }) => {
+        void stockInItemId;
+        return item;
+      })}
     />
   );
 }

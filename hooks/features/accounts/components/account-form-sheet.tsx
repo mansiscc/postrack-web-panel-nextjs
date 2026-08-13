@@ -125,7 +125,6 @@ export function AccountFormSheet({
             >
               <Input
                 id="openingBalance"
-                placeholder="0.00"
                 {...bindDecimalInput(form, "openingBalance", {
                   placeholder: "0.00",
                 })}

@@ -122,8 +122,9 @@ export function CustomerFormSheet({
               >
                 <Input
                   id="phone"
-                  placeholder="Enter mobile number"
-                  {...bindPhoneInput(form, "phone")}
+                  {...bindPhoneInput(form, "phone", {
+                    placeholder: "Enter mobile number",
+                  })}
                 />
               </FormField>
             </div>

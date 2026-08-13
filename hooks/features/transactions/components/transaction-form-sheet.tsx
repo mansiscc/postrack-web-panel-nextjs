@@ -232,8 +232,9 @@ export function TransactionFormSheet({
             >
               <Input
                 id="amount"
-                placeholder="Enter amount"
-                {...bindDecimalInput(form, "amount", { placeholder: "0.00" })}
+                {...bindDecimalInput(form, "amount", {
+                  placeholder: "Enter amount",
+                })}
               />
             </FormField>
             <FormField
