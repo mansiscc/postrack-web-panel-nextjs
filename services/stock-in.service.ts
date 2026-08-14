@@ -72,8 +72,8 @@ export async function getPurchaseFormOptions() {
   ]);
 
   return {
-    suppliers,
-    products: products.filter((p) => p.is_active && !p.is_deleted),
+    suppliers: suppliers.items,
+    products: products.items.filter((p) => p.is_active && !p.is_deleted),
     accounts,
     defaultAccountId: defaultAccount?.id ?? accounts[0]?.id ?? null,
   };

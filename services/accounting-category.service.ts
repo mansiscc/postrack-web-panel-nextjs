@@ -25,6 +25,8 @@ export async function getAccountingCategoriesList(params?: {
   search?: string;
   type?: "all" | "income" | "expense";
   status?: "all" | "active" | "inactive";
+  page?: number;
+  pageSize?: number;
 }) {
   const supabase = await createClient();
   return listAccountingCategories(supabase, params);

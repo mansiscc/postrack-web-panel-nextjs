@@ -23,7 +23,10 @@ type CustomerInput = {
 
 export async function getCustomersList(params?: {
   search?: string;
+  status?: "all" | "active" | "inactive";
   includeInactive?: boolean;
+  page?: number;
+  pageSize?: number;
 }) {
   const supabase = await createClient();
   return listCustomers(supabase, params);

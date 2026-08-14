@@ -37,7 +37,7 @@ export default async function ProductDetailsPage({
     <ProductDetailsView
       product={mapProductRow(productRow)}
       details={details}
-      categories={categories.map((category) => ({
+      categories={categories.items.map((category) => ({
         id: category.id,
         name: category.name,
       }))}

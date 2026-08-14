@@ -9,3 +9,8 @@ export type PaginationParams = {
   page?: number;
   pageSize?: number;
 };
+
+export type ListResult<T> = {
+  items: T[];
+  total: number;
+};

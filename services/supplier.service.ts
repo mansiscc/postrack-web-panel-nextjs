@@ -27,6 +27,8 @@ type SupplierInput = {
 export async function getSuppliersList(params?: {
   search?: string;
   includeDeleted?: boolean;
+  page?: number;
+  pageSize?: number;
 }) {
   const supabase = await createClient();
   return listSuppliers(supabase, params);

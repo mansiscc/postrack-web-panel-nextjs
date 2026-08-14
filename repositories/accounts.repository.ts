@@ -1,12 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
-import type { SearchListParams } from "@/types/list-params";
+import type {
+  ListResult,
+  PaginationParams,
+  SearchListParams,
+} from "@/types/list-params";
 import { buildCountMap } from "@/utils/count-by-key";
 import { mapSupabaseError } from "@/utils/errors";
 import {
   applyActiveStatusFilter,
   applyNameIlikeFilter,
+  resolvePaginationRange,
 } from "@/utils/repository-query";
 
 export type AccountRow = Database["public"]["Tables"]["accounts"]["Row"];
@@ -15,38 +20,51 @@ export type AccountListRow = AccountRow & {
   entry_count: number;
 };
 
-type ListParams = SearchListParams;
+type ListParams = SearchListParams & PaginationParams;
 
 export async function listAccounts(
   supabase: SupabaseClient<Database>,
   params: ListParams = {},
-): Promise<AccountListRow[]> {
+): Promise<ListResult<AccountListRow>> {
+  const { paginate, from, to } = resolvePaginationRange(params);
+
   let query = supabase
     .from("accounts")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("is_default", { ascending: false })
     .order("name", { ascending: true });
 
   query = applyNameIlikeFilter(query, params.search);
   query = applyActiveStatusFilter(query, params.status);
 
-  const { data: accounts, error } = await query;
+  const {
+    data: accounts,
+    error,
+    count,
+  } = paginate ? await query.range(from, to) : await query;
   if (error) throw mapSupabaseError(error);
-  if (!accounts?.length) return [];
+  if (!accounts?.length) return { items: [], total: count ?? 0 };
 
   const { data: entryCounts, error: countError } = await supabase
     .from("entries")
     .select("account_id")
-    .eq("is_deleted", false);
+    .eq("is_deleted", false)
+    .in(
+      "account_id",
+      accounts.map((account) => account.id),
+    );
 
   if (countError) throw mapSupabaseError(countError);
 
   const countMap = buildCountMap(entryCounts ?? [], (entry) => entry.account_id);
 
-  return accounts.map((account) => ({
-    ...account,
-    entry_count: countMap.get(account.id) ?? 0,
-  }));
+  return {
+    items: accounts.map((account) => ({
+      ...account,
+      entry_count: countMap.get(account.id) ?? 0,
+    })),
+    total: count ?? accounts.length,
+  };
 }
 
 export async function listActiveAccounts(

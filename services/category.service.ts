@@ -22,6 +22,8 @@ type CategoryInput = {
 export async function getCategoriesList(params?: {
   search?: string;
   status?: "all" | "active" | "inactive";
+  page?: number;
+  pageSize?: number;
 }) {
   const supabase = await createClient();
   return listCategories(supabase, params);

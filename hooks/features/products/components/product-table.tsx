@@ -3,10 +3,9 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Package, Plus } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -22,6 +21,7 @@ import {
 } from "@/hooks/features/products/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTablePagination } from "@/components/data-table/pagination";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
@@ -38,59 +38,67 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatNumber } from "@/utils/currency";
+import { buildQueryString } from "@/utils/url-query";
 
 type CategoryOption = { id: string; name: string };
 
+type ProductFilters = {
+  search: string;
+  categoryId: string;
+  stock: "all" | "in_stock" | "low_stock" | "out_of_stock";
+  status: "all" | "active" | "inactive" | "deleted";
+};
+
 type ProductTableProps = {
   products: ProductListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
   categories: CategoryOption[];
   canDelete: boolean;
+  filters: ProductFilters;
 };
 
 export function ProductTable({
   products,
+  total,
+  page,
+  pageSize,
   categories,
   canDelete,
+  filters,
 }: ProductTableProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const refresh = useTableRefresh();
-  const [items, setItems] = useSyncedState(products);
-  const [search, setSearch] = useState("");
-  const [categoryId, setCategoryId] = useState("all");
-  const [stock, setStock] = useState<
-    "all" | "in_stock" | "low_stock" | "out_of_stock"
-  >("all");
-  const [status, setStatus] = useState<"all" | "active" | "inactive" | "deleted">(
-    "all",
-  );
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ProductListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductListItem | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    return items.filter((item) => {
-      const term = search.toLowerCase();
-      const matchesSearch =
-        !term ||
-        item.name.toLowerCase().includes(term) ||
-        (item.barcode?.toLowerCase().includes(term) ?? false);
-      const matchesCategory =
-        categoryId === "all" || item.categoryId === categoryId;
-      const stockStatus = getStockStatus(item);
-      const matchesStock =
-        stock === "all" ||
-        (stock === "in_stock" && stockStatus === "ok") ||
-        (stock === "low_stock" && stockStatus === "low") ||
-        (stock === "out_of_stock" && stockStatus === "out");
-      const matchesStatus =
-        status === "all" ||
-        (status === "deleted" && item.isDeleted) ||
-        (status === "active" && !item.isDeleted && item.isActive) ||
-        (status === "inactive" && !item.isDeleted && !item.isActive);
-      return matchesSearch && matchesCategory && matchesStock && matchesStatus;
+  const pushFilters = (
+    patch: Partial<ProductFilters & { page: number; pageSize: number }>,
+  ) => {
+    const next = {
+      q: patch.search ?? filters.search,
+      category: patch.categoryId ?? filters.categoryId,
+      stock: patch.stock ?? filters.stock,
+      status: patch.status ?? filters.status,
+      page: patch.page ?? page,
+      pageSize: patch.pageSize ?? pageSize,
+    };
+    if (
+      patch.search !== undefined ||
+      patch.categoryId !== undefined ||
+      patch.stock !== undefined ||
+      patch.status !== undefined
+    ) {
+      next.page = 1;
+    }
+    startTransition(() => {
+      router.push(`${pathname}${buildQueryString(next)}`);
     });
-  }, [items, search, categoryId, stock, status]);
+  };
 
   const handleToggle = (item: ProductListItem, isActive: boolean) => {
     startTransition(async () => {
@@ -99,9 +107,7 @@ export function ProductTable({
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) => (row.id === item.id ? { ...row, isActive } : row)),
-      );
+      refresh();
     });
   };
 
@@ -113,13 +119,9 @@ export function ProductTable({
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === deleteTarget.id ? { ...row, isDeleted: true } : row,
-        ),
-      );
       toast.success("Product deleted");
       setDeleteTarget(null);
+      refresh();
     });
   };
 
@@ -130,12 +132,8 @@ export function ProductTable({
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === item.id ? { ...row, isDeleted: false } : row,
-        ),
-      );
       toast.success("Product restored");
+      refresh();
     });
   };
 
@@ -276,11 +274,14 @@ export function ProductTable({
         }
       >
         <SearchInput
-          value={search}
-          onChange={setSearch}
+          value={filters.search}
+          onChange={(value) => pushFilters({ search: value })}
           placeholder="Search name or barcode…"
         />
-        <Select value={categoryId} onValueChange={setCategoryId}>
+        <Select
+          value={filters.categoryId}
+          onValueChange={(value) => pushFilters({ categoryId: value })}
+        >
           <SelectTrigger className="h-10 w-40">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
@@ -294,9 +295,9 @@ export function ProductTable({
           </SelectContent>
         </Select>
         <Select
-          value={stock}
+          value={filters.stock}
           onValueChange={(value) =>
-            setStock(value as typeof stock)
+            pushFilters({ stock: value as ProductFilters["stock"] })
           }
         >
           <SelectTrigger className="h-10 w-36">
@@ -310,8 +311,10 @@ export function ProductTable({
           </SelectContent>
         </Select>
         <Select
-          value={status}
-          onValueChange={(value) => setStatus(value as typeof status)}
+          value={filters.status}
+          onValueChange={(value) =>
+            pushFilters({ status: value as ProductFilters["status"] })
+          }
         >
           <SelectTrigger className="h-10 w-36">
             <SelectValue placeholder="Status" />
@@ -325,11 +328,18 @@ export function ProductTable({
         </Select>
       </DataTableToolbar>
 
-      {filtered.length === 0 ? (
+      {products.length === 0 ? (
         <EmptyState
           icon={Package}
           title="No products found"
-          description="Add your first product to start selling and tracking stock."
+          description={
+            filters.search ||
+            filters.categoryId !== "all" ||
+            filters.stock !== "all" ||
+            filters.status !== "all"
+              ? "No products match your current search or filters."
+              : "Add your first product to start selling and tracking stock."
+          }
           action={
             <Button
               type="button"
@@ -344,13 +354,24 @@ export function ProductTable({
           }
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(product) => {
-            router.push(`/products/${product.id}`);
-          }}
-        />
+        <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
+          <DataTable
+            columns={columns}
+            data={products}
+            onRowClick={(product) => {
+              router.push(`/products/${product.id}`);
+            }}
+          />
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(nextPage) => pushFilters({ page: nextPage })}
+            onPageSizeChange={(nextSize) =>
+              pushFilters({ pageSize: nextSize, page: 1 })
+            }
+          />
+        </div>
       )}
 
       <ProductFormSheet

@@ -70,7 +70,7 @@ export async function getBillingFormOptions() {
 
   return {
     products,
-    customers,
+    customers: customers.items,
     accounts,
     defaultAccountId: defaultAccount?.id ?? accounts[0]?.id ?? null,
   };

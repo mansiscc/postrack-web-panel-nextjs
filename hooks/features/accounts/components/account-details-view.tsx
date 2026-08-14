@@ -8,7 +8,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ import {
 } from "@/hooks/features/transactions/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTablePagination } from "@/components/data-table/pagination";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ActiveStatusToggle } from "@/components/forms/status-badge";
 import { useTopbarChrome } from "@/components/layout/topbar-chrome";
@@ -29,10 +30,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
+import { buildQueryString } from "@/utils/url-query";
 
 type AccountDetailsViewProps = {
   account: AccountListItem;
   entries: TransactionListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
   canManage: boolean;
 };
 
@@ -80,17 +85,29 @@ function MetricCard({
 export function AccountDetailsView({
   account,
   entries,
+  total,
+  page,
+  pageSize,
   canManage,
 }: AccountDetailsViewProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { setChrome, clearChrome } = useTopbarChrome();
   const [formOpen, setFormOpen] = useState(false);
   const [isActive, setIsActive] = useState(account.isActive);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     setIsActive(account.isActive);
   }, [account.isActive]);
+
+  const pushLedgerPage = (nextPage: number, nextPageSize = pageSize) => {
+    startTransition(() => {
+      router.push(
+        `${pathname}${buildQueryString({ page: nextPage, pageSize: nextPageSize })}`,
+      );
+    });
+  };
 
   const inflows = useMemo(
     () =>
@@ -276,7 +293,7 @@ export function AccountDetailsView({
           />
           <MetricCard
             label="Transactions"
-            value={String(entries.length)}
+            value={String(total)}
             cardClassName="bg-[linear-gradient(180deg,#EDE9FE_0%,#FFFFFF_100%)]"
             borderClassName="border-[#7C3AED]/20"
           />
@@ -302,9 +319,9 @@ export function AccountDetailsView({
               Recent Activity
             </h3>
             <p className="text-[12px] text-muted-foreground">
-              {entries.length === 0
+              {total === 0
                 ? "No transactions recorded"
-                : `${entries.length} transaction${entries.length === 1 ? "" : "s"}`}
+                : `${total} transaction${total === 1 ? "" : "s"}`}
             </p>
           </div>
 
@@ -315,8 +332,19 @@ export function AccountDetailsView({
               description="Entries for this account will appear here."
             />
           ) : (
-            <div className="rounded-lg border border-border/60 bg-card shadow-card-sm">
-              <DataTable columns={columns} data={entries} />
+            <div
+              className={isPending ? "opacity-60 transition-opacity" : undefined}
+            >
+              <div className="rounded-lg border border-border/60 bg-card shadow-card-sm">
+                <DataTable columns={columns} data={entries} />
+              </div>
+              <DataTablePagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={(nextPage) => pushLedgerPage(nextPage)}
+                onPageSizeChange={(nextSize) => pushLedgerPage(1, nextSize)}
+              />
             </div>
           )}
         </div>

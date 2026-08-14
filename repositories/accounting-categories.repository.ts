@@ -1,12 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
-import type { SearchListParams } from "@/types/list-params";
+import type {
+  ListResult,
+  PaginationParams,
+  SearchListParams,
+} from "@/types/list-params";
 import { buildCountMap } from "@/utils/count-by-key";
 import { mapSupabaseError } from "@/utils/errors";
 import {
   applyActiveStatusFilter,
   applyNameIlikeFilter,
+  resolvePaginationRange,
 } from "@/utils/repository-query";
 
 export type AccountingCategoryRow = {
@@ -20,17 +25,23 @@ export type AccountingCategoryRow = {
   entry_count: number;
 };
 
-type ListParams = SearchListParams & {
-  type?: "all" | "income" | "expense";
-};
+type ListParams = SearchListParams &
+  PaginationParams & {
+    type?: "all" | "income" | "expense";
+  };
 
 export async function listAccountingCategories(
   supabase: SupabaseClient<Database>,
   params: ListParams = {},
-): Promise<AccountingCategoryRow[]> {
+): Promise<ListResult<AccountingCategoryRow>> {
+  const { paginate, from, to } = resolvePaginationRange(params);
+
   let query = supabase
     .from("accounting_categories")
-    .select("id, name, type, description, is_active, created_at, updated_at")
+    .select(
+      "id, name, type, description, is_active, created_at, updated_at",
+      { count: "exact" },
+    )
     .order("type", { ascending: true })
     .order("name", { ascending: true });
 
@@ -42,23 +53,34 @@ export async function listAccountingCategories(
 
   query = applyActiveStatusFilter(query, params.status);
 
-  const { data: categories, error } = await query;
+  const {
+    data: categories,
+    error,
+    count,
+  } = paginate ? await query.range(from, to) : await query;
   if (error) throw mapSupabaseError(error);
-  if (!categories?.length) return [];
+  if (!categories?.length) return { items: [], total: count ?? 0 };
 
   const { data: entryCounts, error: countError } = await supabase
     .from("entries")
     .select("category_id")
-    .eq("is_deleted", false);
+    .eq("is_deleted", false)
+    .in(
+      "category_id",
+      categories.map((category) => category.id),
+    );
 
   if (countError) throw mapSupabaseError(countError);
 
   const countMap = buildCountMap(entryCounts ?? [], (entry) => entry.category_id);
 
-  return categories.map((category) => ({
-    ...category,
-    entry_count: countMap.get(category.id) ?? 0,
-  }));
+  return {
+    items: categories.map((category) => ({
+      ...category,
+      entry_count: countMap.get(category.id) ?? 0,
+    })),
+    total: count ?? categories.length,
+  };
 }
 
 export async function getAccountingCategoryById(

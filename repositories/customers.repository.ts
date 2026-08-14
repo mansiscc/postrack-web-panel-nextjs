@@ -1,26 +1,41 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
+import type {
+  ActiveStatusFilter,
+  ListResult,
+  PaginationParams,
+} from "@/types/list-params";
 import { mapSupabaseError } from "@/utils/errors";
 import { sanitizePostgrestSearch } from "@/utils/postgrest-filter";
+import {
+  applyActiveStatusFilter,
+  resolvePaginationRange,
+} from "@/utils/repository-query";
 
 export type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
 
-type ListParams = {
+type ListParams = PaginationParams & {
   search?: string;
+  status?: ActiveStatusFilter;
+  /** Legacy toggle used when `status` is not supplied. */
   includeInactive?: boolean;
 };
 
 export async function listCustomers(
   supabase: SupabaseClient<Database>,
   params: ListParams = {},
-): Promise<CustomerRow[]> {
+): Promise<ListResult<CustomerRow>> {
+  const { paginate, from, to } = resolvePaginationRange(params);
+
   let query = supabase
     .from("customers")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("name", { ascending: true });
 
-  if (!params.includeInactive) {
+  if (params.status) {
+    query = applyActiveStatusFilter(query, params.status);
+  } else if (!params.includeInactive) {
     query = query.eq("is_active", true);
   }
 
@@ -31,9 +46,13 @@ export async function listCustomers(
     }
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = paginate
+    ? await query.range(from, to)
+    : await query;
   if (error) throw mapSupabaseError(error);
-  return data ?? [];
+
+  const items = data ?? [];
+  return { items, total: count ?? items.length };
 }
 
 export async function getCustomerById(

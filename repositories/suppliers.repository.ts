@@ -1,9 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
+import type { ListResult, PaginationParams } from "@/types/list-params";
 import { buildCountMap } from "@/utils/count-by-key";
 import { mapSupabaseError } from "@/utils/errors";
-import { applyMultiFieldOrSearch } from "@/utils/repository-query";
+import {
+  applyMultiFieldOrSearch,
+  resolvePaginationRange,
+} from "@/utils/repository-query";
 
 export type SupplierRow = Database["public"]["Tables"]["suppliers"]["Row"];
 
@@ -11,7 +15,7 @@ export type SupplierListRow = SupplierRow & {
   purchase_count: number;
 };
 
-type ListParams = {
+type ListParams = PaginationParams & {
   search?: string;
   includeDeleted?: boolean;
 };
@@ -19,10 +23,12 @@ type ListParams = {
 export async function listSuppliers(
   supabase: SupabaseClient<Database>,
   params: ListParams = {},
-): Promise<SupplierListRow[]> {
+): Promise<ListResult<SupplierListRow>> {
+  const { paginate, from, to } = resolvePaginationRange(params);
+
   let query = supabase
     .from("suppliers")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("supplier_name", { ascending: true });
 
   if (!params.includeDeleted) {
@@ -35,23 +41,31 @@ export async function listSuppliers(
     "contact_person",
   ], params.search);
 
-  const { data, error } = await query;
+  const { data, error, count } = paginate
+    ? await query.range(from, to)
+    : await query;
   if (error) throw mapSupabaseError(error);
-  if (!data?.length) return [];
+  if (!data?.length) return { items: [], total: count ?? 0 };
 
   const { data: purchases, error: purchaseError } = await supabase
     .from("stock_in")
     .select("supplier_id")
-    .not("supplier_id", "is", null);
+    .in(
+      "supplier_id",
+      data.map((supplier) => supplier.id),
+    );
 
   if (purchaseError) throw mapSupabaseError(purchaseError);
 
   const countMap = buildCountMap(purchases ?? [], (row) => row.supplier_id);
 
-  return data.map((supplier) => ({
-    ...supplier,
-    purchase_count: countMap.get(supplier.id) ?? 0,
-  }));
+  return {
+    items: data.map((supplier) => ({
+      ...supplier,
+      purchase_count: countMap.get(supplier.id) ?? 0,
+    })),
+    total: count ?? data.length,
+  };
 }
 
 export async function getSupplierById(

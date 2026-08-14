@@ -42,7 +42,7 @@ function toLine(product: {
 
 export async function getInventoryOverview(): Promise<InventoryOverview> {
   const supabase = await createClient();
-  const products = await listProducts(supabase, { status: "all" });
+  const { items: products } = await listProducts(supabase, { status: "all" });
   const activeList = products.filter((p) => !p.is_deleted);
 
   const activeProducts = activeList.filter((p) => p.is_active);

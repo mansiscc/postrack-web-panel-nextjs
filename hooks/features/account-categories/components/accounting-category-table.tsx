@@ -2,9 +2,9 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { FolderTree, Plus } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import { AccountingCategoryFormSheet } from "@/hooks/features/account-categories
 import type { AccountingCategoryListItem } from "@/hooks/features/account-categories/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTablePagination } from "@/components/data-table/pagination";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
@@ -32,40 +33,64 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ActiveStatusFilter } from "@/types/list-params";
+import { buildQueryString } from "@/utils/url-query";
+
+type AccountingCategoryFilters = {
+  search: string;
+  type: "all" | "income" | "expense";
+  status: ActiveStatusFilter;
+};
 
 type AccountingCategoryTableProps = {
   categories: AccountingCategoryListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
   canDelete: boolean;
+  filters: AccountingCategoryFilters;
 };
 
 export function AccountingCategoryTable({
   categories,
+  total,
+  page,
+  pageSize,
   canDelete,
+  filters,
 }: AccountingCategoryTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const refresh = useTableRefresh();
-  const [items, setItems] = useSyncedState(categories);
-  const [search, setSearch] = useState("");
-  const [type, setType] = useState<"all" | "income" | "expense">("all");
-  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<AccountingCategoryListItem | null>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<AccountingCategoryListItem | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    return items.filter((item) => {
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
-      const matchesType = type === "all" || item.type === type;
-      const matchesStatus =
-        status === "all" ||
-        (status === "active" && item.isActive) ||
-        (status === "inactive" && !item.isActive);
-      return matchesSearch && matchesType && matchesStatus;
+  const pushFilters = (
+    patch: Partial<
+      AccountingCategoryFilters & { page: number; pageSize: number }
+    >,
+  ) => {
+    const next = {
+      q: patch.search ?? filters.search,
+      type: patch.type ?? filters.type,
+      status: patch.status ?? filters.status,
+      page: patch.page ?? page,
+      pageSize: patch.pageSize ?? pageSize,
+    };
+    if (
+      patch.search !== undefined ||
+      patch.type !== undefined ||
+      patch.status !== undefined
+    ) {
+      next.page = 1;
+    }
+    startTransition(() => {
+      router.push(`${pathname}${buildQueryString(next)}`);
     });
-  }, [items, search, type, status]);
+  };
 
   const handleToggle = (item: AccountingCategoryListItem, isActive: boolean) => {
     startTransition(async () => {
@@ -77,9 +102,7 @@ export function AccountingCategoryTable({
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) => (row.id === item.id ? { ...row, isActive } : row)),
-      );
+      refresh();
     });
   };
 
@@ -91,9 +114,9 @@ export function AccountingCategoryTable({
         toast.error(result.error);
         return;
       }
-      setItems((prev) => prev.filter((row) => row.id !== deleteTarget.id));
       toast.success("Category removed");
       setDeleteTarget(null);
+      refresh();
     });
   };
 
@@ -195,14 +218,16 @@ export function AccountingCategoryTable({
         }
       >
         <SearchInput
-          value={search}
-          onChange={setSearch}
+          value={filters.search}
+          onChange={(value) => pushFilters({ search: value })}
           placeholder="Search categories by name"
           className="w-full sm:max-w-xs"
         />
         <Select
-          value={type}
-          onValueChange={(value: "all" | "income" | "expense") => setType(value)}
+          value={filters.type}
+          onValueChange={(value: "all" | "income" | "expense") =>
+            pushFilters({ type: value })
+          }
         >
           <SelectTrigger className="w-36">
             <SelectValue placeholder="Type" />
@@ -213,14 +238,23 @@ export function AccountingCategoryTable({
             <SelectItem value="expense">Expense</SelectItem>
           </SelectContent>
         </Select>
-        <StatusFilterSelect value={status} onValueChange={setStatus} />
+        <StatusFilterSelect
+          value={filters.status}
+          onValueChange={(value) => pushFilters({ status: value })}
+        />
       </DataTableToolbar>
 
-      {filtered.length === 0 ? (
+      {categories.length === 0 ? (
         <EmptyState
           icon={FolderTree}
           title="No categories found"
-          description="Add a category to get started."
+          description={
+            filters.search ||
+            filters.type !== "all" ||
+            filters.status !== "all"
+              ? "No categories match your current search or filters."
+              : "Add a category to get started."
+          }
           action={
             <Button
               onClick={() => {
@@ -234,10 +268,18 @@ export function AccountingCategoryTable({
           }
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-        />
+        <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
+          <DataTable columns={columns} data={categories} />
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(nextPage) => pushFilters({ page: nextPage })}
+            onPageSizeChange={(nextSize) =>
+              pushFilters({ pageSize: nextSize, page: 1 })
+            }
+          />
+        </div>
       )}
 
       <AccountingCategoryFormSheet

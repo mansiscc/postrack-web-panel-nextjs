@@ -2,9 +2,9 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Tags } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import { CategoryFormSheet } from "@/hooks/features/categories/components/catego
 import type { CategoryListItem } from "@/hooks/features/categories/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTablePagination } from "@/components/data-table/pagination";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -24,36 +25,57 @@ import { SearchInput } from "@/components/forms/search-input";
 import { StatusFilterSelect } from "@/components/forms/status-filter-select";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import type { ActiveStatusFilter } from "@/types/list-params";
+import { buildQueryString } from "@/utils/url-query";
+
+type CategoryFilters = {
+  search: string;
+  status: ActiveStatusFilter;
+};
 
 type CategoryTableProps = {
   categories: CategoryListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
   canDelete: boolean;
+  filters: CategoryFilters;
 };
 
-export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
+export function CategoryTable({
+  categories,
+  total,
+  page,
+  pageSize,
+  canDelete,
+  filters,
+}: CategoryTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const refresh = useTableRefresh();
-  const [items, setItems] = useSyncedState(categories);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<CategoryListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CategoryListItem | null>(
     null,
   );
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    return items.filter((item) => {
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
-      const matchesStatus =
-        status === "all" ||
-        (status === "active" && item.isActive) ||
-        (status === "inactive" && !item.isActive);
-      return matchesSearch && matchesStatus;
+  const pushFilters = (
+    patch: Partial<CategoryFilters & { page: number; pageSize: number }>,
+  ) => {
+    const next = {
+      q: patch.search ?? filters.search,
+      status: patch.status ?? filters.status,
+      page: patch.page ?? page,
+      pageSize: patch.pageSize ?? pageSize,
+    };
+    if (patch.search !== undefined || patch.status !== undefined) {
+      next.page = 1;
+    }
+    startTransition(() => {
+      router.push(`${pathname}${buildQueryString(next)}`);
     });
-  }, [items, search, status]);
+  };
 
   const handleToggle = (item: CategoryListItem, isActive: boolean) => {
     startTransition(async () => {
@@ -62,9 +84,7 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) => (row.id === item.id ? { ...row, isActive } : row)),
-      );
+      refresh();
     });
   };
 
@@ -76,9 +96,9 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
         toast.error(result.error);
         return;
       }
-      setItems((prev) => prev.filter((row) => row.id !== deleteTarget.id));
       toast.success("Category deleted");
       setDeleteTarget(null);
+      refresh();
     });
   };
 
@@ -159,18 +179,25 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
         }
       >
         <SearchInput
-          value={search}
-          onChange={setSearch}
+          value={filters.search}
+          onChange={(value) => pushFilters({ search: value })}
           placeholder="Search categories by name"
         />
-        <StatusFilterSelect value={status} onValueChange={setStatus} />
+        <StatusFilterSelect
+          value={filters.status}
+          onValueChange={(value) => pushFilters({ status: value })}
+        />
       </DataTableToolbar>
 
-      {filtered.length === 0 ? (
+      {categories.length === 0 ? (
         <EmptyState
           icon={Tags}
           title="No categories found"
-          description="Add a category to get started."
+          description={
+            filters.search || filters.status !== "all"
+              ? "No categories match your current search or filters."
+              : "Add a category to get started."
+          }
           action={
             <Button
               type="button"
@@ -185,10 +212,18 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
           }
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-        />
+        <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
+          <DataTable columns={columns} data={categories} />
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(nextPage) => pushFilters({ page: nextPage })}
+            onPageSizeChange={(nextSize) =>
+              pushFilters({ pageSize: nextSize, page: 1 })
+            }
+          />
+        </div>
       )}
 
       <CategoryFormSheet

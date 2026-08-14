@@ -1,4 +1,5 @@
-import type { ActiveStatusFilter } from "@/types/list-params";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import type { ActiveStatusFilter, PaginationParams } from "@/types/list-params";
 import { sanitizePostgrestSearch, toIlikePattern } from "@/utils/postgrest-filter";
 
 type IlikeQueryable = {
@@ -42,4 +43,21 @@ export function applyActiveStatusFilter<T extends EqQueryable>(
   if (status === "active") return query.eq(column, true) as T;
   if (status === "inactive") return query.eq(column, false) as T;
   return query;
+}
+
+/**
+ * Callers that omit both `page` and `pageSize` get every row back, so form and
+ * dropdown lookups keep working against the same repository functions.
+ */
+export function resolvePaginationRange(params: PaginationParams): {
+  paginate: boolean;
+  from: number;
+  to: number;
+  pageSize: number;
+} {
+  const paginate = params.page != null || params.pageSize != null;
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? DEFAULT_PAGE_SIZE;
+  const from = (page - 1) * pageSize;
+  return { paginate, from, to: from + pageSize - 1, pageSize };
 }

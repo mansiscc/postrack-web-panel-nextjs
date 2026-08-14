@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, UserCog } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 import { useTableRefresh } from "@/hooks/use-table-refresh";
@@ -17,6 +18,7 @@ import { UserFormSheet } from "@/features/users/components/user-form-sheet";
 import type { UserListItem } from "@/features/users/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTablePagination } from "@/components/data-table/pagination";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -33,39 +35,63 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { buildQueryString } from "@/utils/url-query";
 
 type UserStatusFilter = "all" | "active" | "inactive" | "deleted";
 
-type UserTableProps = {
-  users: UserListItem[];
-  currentUserId: string;
+type UserFilters = {
+  search: string;
+  role: string;
+  status: UserStatusFilter;
 };
 
-export function UserTable({ users, currentUserId }: UserTableProps) {
+type UserTableProps = {
+  users: UserListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  currentUserId: string;
+  filters: UserFilters;
+};
+
+export function UserTable({
+  users,
+  total,
+  page,
+  pageSize,
+  currentUserId,
+  filters,
+}: UserTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const refresh = useTableRefresh();
-  const [search, setSearch] = useState("");
-  const [role, setRole] = useState("all");
-  const [status, setStatus] = useState<UserStatusFilter>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<UserListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserListItem | null>(null);
   const [passwordTarget, setPasswordTarget] = useState<UserListItem | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    return users.filter((item) => {
-      const matchesSearch =
-        item.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        item.email.toLowerCase().includes(search.toLowerCase());
-      const matchesRole = role === "all" || item.role === role;
-      const matchesStatus =
-        (status === "all" && !item.isDeleted) ||
-        (status === "deleted" && item.isDeleted) ||
-        (status === "active" && !item.isDeleted && item.status === "Active") ||
-        (status === "inactive" && !item.isDeleted && item.status === "Inactive");
-      return matchesSearch && matchesRole && matchesStatus;
+  const pushFilters = (
+    patch: Partial<UserFilters & { page: number; pageSize: number }>,
+  ) => {
+    const next = {
+      q: patch.search ?? filters.search,
+      role: patch.role ?? filters.role,
+      status: patch.status ?? filters.status,
+      page: patch.page ?? page,
+      pageSize: patch.pageSize ?? pageSize,
+    };
+    if (
+      patch.search !== undefined ||
+      patch.role !== undefined ||
+      patch.status !== undefined
+    ) {
+      next.page = 1;
+    }
+    startTransition(() => {
+      router.push(`${pathname}${buildQueryString(next)}`);
     });
-  }, [users, search, role, status]);
+  };
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -222,8 +248,15 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
           </Button>
         }
       >
-        <SearchInput value={search} onChange={setSearch} placeholder="Search users…" />
-        <Select value={role} onValueChange={setRole}>
+        <SearchInput
+          value={filters.search}
+          onChange={(value) => pushFilters({ search: value })}
+          placeholder="Search users…"
+        />
+        <Select
+          value={filters.role}
+          onValueChange={(value) => pushFilters({ role: value })}
+        >
           <SelectTrigger className="h-10 w-32.5">
             <SelectValue placeholder="Role" />
           </SelectTrigger>
@@ -235,8 +268,10 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
           </SelectContent>
         </Select>
         <Select
-          value={status}
-          onValueChange={(value) => setStatus(value as UserStatusFilter)}
+          value={filters.status}
+          onValueChange={(value) =>
+            pushFilters({ status: value as UserStatusFilter })
+          }
         >
           <SelectTrigger className="h-10 w-32.5">
             <SelectValue placeholder="Status" />
@@ -250,11 +285,17 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
         </Select>
       </DataTableToolbar>
 
-      {filtered.length === 0 ? (
+      {users.length === 0 ? (
         <EmptyState
           icon={UserCog}
           title="No users found"
-          description="Add team members to your store."
+          description={
+            filters.search ||
+            filters.role !== "all" ||
+            filters.status !== "all"
+              ? "No users match your current search or filters."
+              : "Add team members to your store."
+          }
           action={
             <Button
               type="button"
@@ -269,10 +310,18 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
           }
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-        />
+        <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
+          <DataTable columns={columns} data={users} />
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(nextPage) => pushFilters({ page: nextPage })}
+            onPageSizeChange={(nextSize) =>
+              pushFilters({ pageSize: nextSize, page: 1 })
+            }
+          />
+        </div>
       )}
 
       <UserFormSheet

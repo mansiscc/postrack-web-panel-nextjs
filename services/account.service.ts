@@ -23,6 +23,8 @@ type AccountInput = {
 export async function getAccountsList(params?: {
   search?: string;
   status?: "all" | "active" | "inactive";
+  page?: number;
+  pageSize?: number;
 }) {
   const supabase = await createClient();
   return listAccounts(supabase, params);

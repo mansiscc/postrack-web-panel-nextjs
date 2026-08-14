@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/constants";
 import { formatDateTime } from "@/utils/date";
 import { ScrollText } from "lucide-react";
 import type { ActivityLogRow } from "@/repositories/activity-log.repository";
@@ -45,6 +45,7 @@ export function ActivityLogTable({
   const [items, setItems] = useState(initialItems.map(mapActivityLogRow));
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [actionType, setActionType] = useState("all");
@@ -62,11 +63,11 @@ export function ActivityLogTable({
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const fetchLogs = (nextPage = page) => {
+  const fetchLogs = (nextPage = page, nextPageSize = pageSize) => {
     startTransition(async () => {
       const params = new URLSearchParams({
         page: String(nextPage),
-        pageSize: String(DEFAULT_PAGE_SIZE),
+        pageSize: String(nextPageSize),
       });
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (actionType !== "all") params.set("actionType", actionType);
@@ -85,11 +86,13 @@ export function ActivityLogTable({
       setItems(data.items.map(mapActivityLogRow));
       setTotal(data.total);
       setPage(nextPage);
+      setPageSize(nextPageSize);
     });
   };
 
   useEffect(() => {
-    fetchLogs(1);
+    fetchLogs(1, pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch when filters change; pageSize handled by pager
   }, [debouncedSearch, actionType, moduleName, status, userId, dateFrom, dateTo]);
 
   const columns = useMemo<ColumnDef<ActivityLogItem>[]>(
@@ -228,9 +231,11 @@ export function ActivityLogTable({
           <DataTable columns={columns} data={items} />
           <DataTablePagination
             page={page}
-            pageSize={DEFAULT_PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
-            onPageChange={fetchLogs}
+            pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
+            onPageChange={(nextPage) => fetchLogs(nextPage)}
+            onPageSizeChange={(nextSize) => fetchLogs(1, nextSize)}
           />
         </>
       )}

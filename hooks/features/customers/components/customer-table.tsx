@@ -2,15 +2,16 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
 
-import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 
 import { CustomerFormSheet } from "@/hooks/features/customers/components/customer-form-sheet";
 import type { CustomerListItem } from "@/hooks/features/customers/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTablePagination } from "@/components/data-table/pagination";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
@@ -21,39 +22,56 @@ import { ActiveStatusToggle } from "@/components/forms/status-badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { updateCustomerAction } from "@/hooks/features/customers/actions";
-import { useTransition } from "react";
 import { CustomerDetailSheet } from "@/hooks/features/customers/components/customer-detail-sheet";
+import type { ActiveStatusFilter } from "@/types/list-params";
+import { buildQueryString } from "@/utils/url-query";
+
+type CustomerFilters = {
+  search: string;
+  status: ActiveStatusFilter;
+};
 
 type CustomerTableProps = {
   customers: CustomerListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  filters: CustomerFilters;
 };
 
-export function CustomerTable({ customers }: CustomerTableProps) {
+export function CustomerTable({
+  customers,
+  total,
+  page,
+  pageSize,
+  filters,
+}: CustomerTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const refresh = useTableRefresh();
-  const [items, setItems] = useSyncedState(customers);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerListItem | null>(null);
   const [selected, setSelected] = useState<CustomerListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomerListItem | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    return items.filter((item) => {
-      const term = search.toLowerCase();
-      const matchesSearch =
-        !term ||
-        item.name.toLowerCase().includes(term) ||
-        item.phone.toLowerCase().includes(term);
-      const matchesStatus =
-        status === "all" ||
-        (status === "active" && item.isActive) ||
-        (status === "inactive" && !item.isActive);
-      return matchesSearch && matchesStatus;
+  const pushFilters = (
+    patch: Partial<CustomerFilters & { page: number; pageSize: number }>,
+  ) => {
+    const next = {
+      q: patch.search ?? filters.search,
+      status: patch.status ?? filters.status,
+      page: patch.page ?? page,
+      pageSize: patch.pageSize ?? pageSize,
+    };
+    if (patch.search !== undefined || patch.status !== undefined) {
+      next.page = 1;
+    }
+    startTransition(() => {
+      router.push(`${pathname}${buildQueryString(next)}`);
     });
-  }, [items, search, status]);
+  };
 
   const handleToggle = (item: CustomerListItem, isActive: boolean) => {
     startTransition(async () => {
@@ -68,9 +86,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) => (row.id === item.id ? { ...row, isActive } : row)),
-      );
+      refresh();
     });
   };
 
@@ -88,13 +104,9 @@ export function CustomerTable({ customers }: CustomerTableProps) {
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === deleteTarget.id ? { ...row, isActive: false } : row,
-        ),
-      );
       toast.success("Customer deleted");
       setDeleteTarget(null);
+      refresh();
     });
   };
 
@@ -160,18 +172,25 @@ export function CustomerTable({ customers }: CustomerTableProps) {
         }
       >
         <SearchInput
-          value={search}
-          onChange={setSearch}
+          value={filters.search}
+          onChange={(value) => pushFilters({ search: value })}
           placeholder="Search name or phone…"
         />
-        <StatusFilterSelect value={status} onValueChange={setStatus} />
+        <StatusFilterSelect
+          value={filters.status}
+          onValueChange={(value) => pushFilters({ status: value })}
+        />
       </DataTableToolbar>
 
-      {filtered.length === 0 ? (
+      {customers.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No customers found"
-          description="Add customers to speed up billing and track purchase history."
+          description={
+            filters.search || filters.status !== "all"
+              ? "No customers match your current search or filters."
+              : "Add customers to speed up billing and track purchase history."
+          }
           action={
             <Button
               type="button"
@@ -186,14 +205,25 @@ export function CustomerTable({ customers }: CustomerTableProps) {
           }
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(row) => {
-            setSelected(row);
-            setDetailOpen(true);
-          }}
-        />
+        <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
+          <DataTable
+            columns={columns}
+            data={customers}
+            onRowClick={(row) => {
+              setSelected(row);
+              setDetailOpen(true);
+            }}
+          />
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(nextPage) => pushFilters({ page: nextPage })}
+            onPageSizeChange={(nextSize) =>
+              pushFilters({ pageSize: nextSize, page: 1 })
+            }
+          />
+        </div>
       )}
 
       <CustomerFormSheet

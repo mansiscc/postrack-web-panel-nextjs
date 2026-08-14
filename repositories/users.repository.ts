@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
+import type { ListResult, PaginationParams } from "@/types/list-params";
 import { mapSupabaseError } from "@/utils/errors";
 import { sanitizePostgrestSearch } from "@/utils/postgrest-filter";
+import { resolvePaginationRange } from "@/utils/repository-query";
 
 export type UserListRow =
   Database["public"]["Views"]["user_list_with_permissions_view"]["Row"];
@@ -10,23 +12,29 @@ export type UserListRow =
 type UserRole = UserListRow["role"];
 type UserStatus = UserListRow["status"];
 
-export type UserListParams = {
+export type UserListParams = PaginationParams & {
   search?: string;
   role?: UserRole | "all";
-  status?: UserStatus | "all";
+  status?: UserStatus | "all" | "deleted";
   includeDeleted?: boolean;
 };
 
 export async function listUsers(
   supabase: SupabaseClient<Database>,
   params: UserListParams = {},
-): Promise<UserListRow[]> {
+): Promise<ListResult<UserListRow>> {
+  const { paginate, from, to } = resolvePaginationRange(params);
+
   let query = supabase
     .from("user_list_with_permissions_view")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("full_name", { ascending: true });
 
-  if (!params.includeDeleted) {
+  if (params.status === "deleted") {
+    query = query.eq("is_deleted", true);
+  } else if (params.status === "Active" || params.status === "Inactive") {
+    query = query.eq("is_deleted", false).eq("status", params.status);
+  } else if (!params.includeDeleted) {
     query = query.eq("is_deleted", false);
   }
 
@@ -41,13 +49,13 @@ export async function listUsers(
     query = query.eq("role", params.role);
   }
 
-  if (params.status && params.status !== "all") {
-    query = query.eq("status", params.status);
-  }
-
-  const { data, error } = await query;
+  const { data, error, count } = paginate
+    ? await query.range(from, to)
+    : await query;
   if (error) throw mapSupabaseError(error);
-  return data ?? [];
+
+  const items = data ?? [];
+  return { items, total: count ?? items.length };
 }
 
 export async function getUserById(

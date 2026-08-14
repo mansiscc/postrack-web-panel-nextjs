@@ -1,12 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
-import type { SearchListParams } from "@/types/list-params";
+import type {
+  ListResult,
+  PaginationParams,
+  SearchListParams,
+} from "@/types/list-params";
 import { buildCountMap } from "@/utils/count-by-key";
 import { mapSupabaseError } from "@/utils/errors";
 import {
   applyActiveStatusFilter,
   applyNameIlikeFilter,
+  resolvePaginationRange,
 } from "@/utils/repository-query";
 
 export type CategoryRow = {
@@ -19,29 +24,40 @@ export type CategoryRow = {
   product_count: number;
 };
 
-type ListParams = SearchListParams;
+type ListParams = SearchListParams & PaginationParams;
 
 export async function listCategories(
   supabase: SupabaseClient<Database>,
   params: ListParams = {},
-): Promise<CategoryRow[]> {
+): Promise<ListResult<CategoryRow>> {
+  const { paginate, from, to } = resolvePaginationRange(params);
+
   let query = supabase
     .from("product_categories")
-    .select("id, name, description, is_active, created_at, updated_at")
+    .select("id, name, description, is_active, created_at, updated_at", {
+      count: "exact",
+    })
     .order("name", { ascending: true });
 
   query = applyNameIlikeFilter(query, params.search);
   query = applyActiveStatusFilter(query, params.status);
 
-  const { data: categories, error } = await query;
+  const {
+    data: categories,
+    error,
+    count,
+  } = paginate ? await query.range(from, to) : await query;
   if (error) throw mapSupabaseError(error);
-  if (!categories?.length) return [];
+  if (!categories?.length) return { items: [], total: count ?? 0 };
 
   const { data: productCounts, error: countError } = await supabase
     .from("products")
     .select("product_category_id")
     .eq("is_deleted", false)
-    .not("product_category_id", "is", null);
+    .in(
+      "product_category_id",
+      categories.map((category) => category.id),
+    );
 
   if (countError) throw mapSupabaseError(countError);
 
@@ -50,10 +66,13 @@ export async function listCategories(
     (product) => product.product_category_id,
   );
 
-  return categories.map((category) => ({
-    ...category,
-    product_count: countMap.get(category.id) ?? 0,
-  }));
+  return {
+    items: categories.map((category) => ({
+      ...category,
+      product_count: countMap.get(category.id) ?? 0,
+    })),
+    total: count ?? categories.length,
+  };
 }
 
 export async function getCategoryById(

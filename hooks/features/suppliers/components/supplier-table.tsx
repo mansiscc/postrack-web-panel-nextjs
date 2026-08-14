@@ -2,10 +2,9 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Truck } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { useSyncedState } from "@/hooks/use-synced-state";
 import { useTableRefresh } from "@/hooks/use-table-refresh";
 import { toast } from "sonner";
 
@@ -17,6 +16,7 @@ import { SupplierFormSheet } from "@/hooks/features/suppliers/components/supplie
 import type { SupplierListItem } from "@/hooks/features/suppliers/types";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { DataTablePagination } from "@/components/data-table/pagination";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
@@ -24,32 +24,52 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { SearchInput } from "@/components/forms/search-input";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/utils/currency";
+import { buildQueryString } from "@/utils/url-query";
+
+type SupplierFilters = {
+  search: string;
+};
 
 type SupplierTableProps = {
   suppliers: SupplierListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
   canDelete: boolean;
+  filters: SupplierFilters;
 };
 
-export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
-  const refresh = useTableRefresh();
+export function SupplierTable({
+  suppliers,
+  total,
+  page,
+  pageSize,
+  canDelete,
+  filters,
+}: SupplierTableProps) {
   const router = useRouter();
-  const [items, setItems] = useSyncedState(suppliers);
-  const [search, setSearch] = useState("");
+  const pathname = usePathname();
+  const refresh = useTableRefresh();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SupplierListItem | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    const term = search.toLowerCase();
-    return items.filter(
-      (item) =>
-        !term ||
-        item.supplierName.toLowerCase().includes(term) ||
-        (item.phone?.toLowerCase().includes(term) ?? false) ||
-        (item.contactPerson?.toLowerCase().includes(term) ?? false),
-    );
-  }, [items, search]);
+  const pushFilters = (
+    patch: Partial<SupplierFilters & { page: number; pageSize: number }>,
+  ) => {
+    const next = {
+      q: patch.search ?? filters.search,
+      page: patch.page ?? page,
+      pageSize: patch.pageSize ?? pageSize,
+    };
+    if (patch.search !== undefined) {
+      next.page = 1;
+    }
+    startTransition(() => {
+      router.push(`${pathname}${buildQueryString(next)}`);
+    });
+  };
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -59,13 +79,9 @@ export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === deleteTarget.id ? { ...row, isDeleted: true } : row,
-        ),
-      );
       toast.success("Supplier deleted");
       setDeleteTarget(null);
+      refresh();
     });
   };
 
@@ -76,12 +92,8 @@ export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === item.id ? { ...row, isDeleted: false } : row,
-        ),
-      );
       toast.success("Supplier restored");
+      refresh();
     });
   };
 
@@ -173,17 +185,21 @@ export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
         }
       >
         <SearchInput
-          value={search}
-          onChange={setSearch}
+          value={filters.search}
+          onChange={(value) => pushFilters({ search: value })}
           placeholder="Search suppliers…"
         />
       </DataTableToolbar>
 
-      {filtered.length === 0 ? (
+      {suppliers.length === 0 ? (
         <EmptyState
           icon={Truck}
           title="No suppliers found"
-          description="Add suppliers to track purchase relationships."
+          description={
+            filters.search
+              ? "No suppliers match your current search."
+              : "Add suppliers to track purchase relationships."
+          }
           action={
             <Button
               type="button"
@@ -198,13 +214,24 @@ export function SupplierTable({ suppliers, canDelete }: SupplierTableProps) {
           }
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(row) => {
-            router.push(`/suppliers/${row.id}`);
-          }}
-        />
+        <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
+          <DataTable
+            columns={columns}
+            data={suppliers}
+            onRowClick={(row) => {
+              router.push(`/suppliers/${row.id}`);
+            }}
+          />
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(nextPage) => pushFilters({ page: nextPage })}
+            onPageSizeChange={(nextSize) =>
+              pushFilters({ pageSize: nextSize, page: 1 })
+            }
+          />
+        </div>
       )}
 
       <SupplierFormSheet

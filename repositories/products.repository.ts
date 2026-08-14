@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database, Json } from "@/types/database.types";
+import type { ListResult, PaginationParams } from "@/types/list-params";
 import { mapSupabaseError } from "@/utils/errors";
 import { sanitizePostgrestSearch } from "@/utils/postgrest-filter";
+import { resolvePaginationRange } from "@/utils/repository-query";
 
 export type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 
@@ -10,7 +12,7 @@ export type ProductListRow = ProductRow & {
   category_name: string | null;
 };
 
-export type ProductListParams = {
+export type ProductListParams = PaginationParams & {
   search?: string;
   categoryId?: string | "all";
   stock?: "all" | "in_stock" | "low_stock" | "out_of_stock";
@@ -60,7 +62,13 @@ export type UpdateProductInput = {
 export async function listProducts(
   supabase: SupabaseClient<Database>,
   params: ProductListParams = {},
-): Promise<ProductListRow[]> {
+): Promise<ListResult<ProductListRow>> {
+  const { paginate, from, to, pageSize } = resolvePaginationRange(params);
+  // Low/in-stock compare two columns, which PostgREST cannot express, so those
+  // filters are applied in memory after the other filters run DB-side.
+  const filtersStockInMemory =
+    params.stock === "low_stock" || params.stock === "in_stock";
+
   let query = supabase
     .from("products")
     .select(
@@ -68,6 +76,7 @@ export async function listProducts(
       *,
       product_categories ( name )
     `,
+      { count: "exact" },
     )
     .order("name", { ascending: true });
 
@@ -92,10 +101,15 @@ export async function listProducts(
     }
   }
 
-  const { data, error } = await query;
+  if (params.stock === "out_of_stock") {
+    query = query.lte("stock_quantity", 0);
+  }
+
+  const { data, error, count } =
+    paginate && !filtersStockInMemory ? await query.range(from, to) : await query;
   if (error) throw mapSupabaseError(error);
 
-  let rows = (data ?? []).map((row) => {
+  let rows: ProductListRow[] = (data ?? []).map((row) => {
     const { product_categories, ...product } = row;
     const category = product_categories as { name: string } | null;
     return {
@@ -104,18 +118,21 @@ export async function listProducts(
     };
   });
 
-  if (params.stock && params.stock !== "all") {
+  if (filtersStockInMemory) {
     rows = rows.filter((row) => {
       const stock = row.stock_quantity ?? 0;
       const alert = row.low_stock_alert_qty ?? 0;
-      if (params.stock === "out_of_stock") return stock <= 0;
       if (params.stock === "low_stock") return stock > 0 && stock <= alert;
-      if (params.stock === "in_stock") return stock > alert;
-      return true;
+      return stock > alert;
     });
+    const total = rows.length;
+    return {
+      items: paginate ? rows.slice(from, from + pageSize) : rows,
+      total,
+    };
   }
 
-  return rows;
+  return { items: rows, total: count ?? rows.length };
 }
 
 export async function getProductById(

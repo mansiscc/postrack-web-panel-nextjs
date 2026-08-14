@@ -390,8 +390,7 @@ export async function searchBillingProducts(
     .eq("is_deleted", false)
     .eq("is_active", true)
     .gt("stock_quantity", 0)
-    .order("name", { ascending: true })
-    .limit(50);
+    .order("name", { ascending: true });
 
   if (query?.trim()) {
     const term = sanitizePostgrestSearch(query);
