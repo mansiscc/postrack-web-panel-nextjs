@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
@@ -12,6 +12,9 @@ import type { DateRangePreset } from "@/utils/date";
 type DateRangeToolbarProps = {
   showExport?: boolean;
   onExport?: () => void;
+  showPrint?: boolean;
+  onPrint?: () => void;
+  printPending?: boolean;
   /** Selected segment color — primary (sales) or success/green (purchases, like the app). */
   accent?: "primary" | "success";
 };
@@ -27,6 +30,9 @@ const PRESETS: Array<{ id: DateRangePreset; label: string }> = [
 export function DateRangeToolbar({
   showExport = false,
   onExport,
+  showPrint = false,
+  onPrint,
+  printPending = false,
   accent = "primary",
 }: DateRangeToolbarProps) {
   const router = useRouter();
@@ -93,16 +99,26 @@ export function DateRangeToolbar({
           })}
         </div>
 
-        {showExport && onExport ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="ml-auto shrink-0"
-            onClick={onExport}
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+        {showExport || showPrint ? (
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {showPrint && onPrint ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={printPending}
+                onClick={onPrint}
+              >
+                <Printer className="h-4 w-4" />
+                {printPending ? "Printing…" : "Print"}
+              </Button>
+            ) : null}
+            {showExport && onExport ? (
+              <Button type="button" variant="outline" onClick={onExport}>
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 

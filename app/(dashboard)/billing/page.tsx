@@ -18,6 +18,9 @@ export default async function BillingPage() {
       customers={options.customers}
       defaultAccountId={options.defaultAccountId}
       businessName={profile?.business_name}
+      businessAddress={profile?.address}
+      businessPhone={profile?.phone}
+      businessGstin={profile?.gstin}
       receiptFooter={profile?.receipt_footer}
       logoUrl={profile?.logo_url}
       showLogoOnBill={profile?.show_logo_on_bill ?? true}

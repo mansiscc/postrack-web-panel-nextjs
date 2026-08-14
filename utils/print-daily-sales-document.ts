@@ -1,5 +1,10 @@
 import { printHtmlDocument } from "@/utils/print-label-document";
 import {
+  buildDailySalesReceiptLines,
+  dailySalesLineStyle,
+  type DailySalesReceiptItem,
+} from "@/utils/daily-sales-receipt-formatter";
+import {
   readPrintSettings,
   type ReceiptPaperWidth,
 } from "@/utils/print-settings";
@@ -7,15 +12,11 @@ import {
   estimateReceiptPageHeightMm,
   getReceiptPrintLayout,
 } from "@/utils/receipt-print-layout";
-import type { ReceiptPreviewData } from "@/utils/receipt-preview-data";
 import {
   RECEIPT_MONO_FONT,
   RECEIPT_MONO_FONT_STYLESHEET,
-  buildReceiptLines,
-  getReceiptRenderMeta,
   padReceiptLine,
 } from "@/utils/receipt-render";
-import { receiptLineStyle } from "@/utils/receipt-text-formatter";
 
 function escapeHtml(value: string): string {
   return value
@@ -26,39 +27,33 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-/**
- * Print a thermal receipt via isolated iframe.
- *
- * Font is sized so `charactersPerLine` fits the printable width (avoids
- * sideways clipping). Page height is measured from content so the print
- * dialog stays on a single strip.
- */
-export async function printReceiptDocument(
-  data: ReceiptPreviewData,
-  paperWidth: ReceiptPaperWidth = readPrintSettings().paperWidth,
-): Promise<void> {
+export async function printDailySalesDocument(input: {
+  businessName: string;
+  dateIso: string;
+  items: DailySalesReceiptItem[];
+  paperWidth?: ReceiptPaperWidth;
+}): Promise<void> {
+  const paperWidth = input.paperWidth ?? readPrintSettings().paperWidth;
   const layout = getReceiptPrintLayout(paperWidth);
-  const { showLogo, logoSrc, businessName } = getReceiptRenderMeta(data);
-  const lines = buildReceiptLines(data, paperWidth);
+  const businessName = input.businessName.trim();
+  const lines = buildDailySalesReceiptLines({
+    businessName,
+    dateIso: input.dateIso,
+    items: input.items,
+    paperWidth,
+  });
   const pageHeightMm = estimateReceiptPageHeightMm({
     lineCount: lines.length,
-    hasLogo: showLogo,
+    hasLogo: false,
   });
   const chars = layout.charactersPerLine;
-
-  // Size glyphs so N monospace columns fit printable width.
-  // Roboto Mono advance ≈ 0.6em → em = printable / (chars * 0.6).
   const bodyFontMm =
     layout.printableWidthMm / (layout.charactersPerLine * 0.6);
   const titleFontMm = bodyFontMm * (layout.titleFontPt / layout.bodyFontPt);
 
-  const logo = showLogo
-    ? `<img class="logo" src="${escapeHtml(logoSrc)}" alt="${escapeHtml(businessName)}" />`
-    : "";
-
   const bodyHtml = lines
     .map((line) => {
-      const style = receiptLineStyle(line, businessName);
+      const style = dailySalesLineStyle(line, businessName);
       if (style === "title") {
         return `<div class="title">${escapeHtml(businessName)}</div>`;
       }
@@ -75,7 +70,7 @@ export async function printReceiptDocument(
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Receipt · ${layout.paperWidthMm}mm</title>
+  <title>Daily Sales · ${layout.paperWidthMm}mm</title>
   <link rel="stylesheet" href="${RECEIPT_MONO_FONT_STYLESHEET}" />
   <style>
     @page {
@@ -107,15 +102,6 @@ export async function printReceiptDocument(
       width: ${layout.printableWidthMm}mm;
       max-width: 100%;
       overflow: hidden;
-    }
-    .logo {
-      display: block;
-      margin: 0 auto 2mm;
-      max-width: 70%;
-      max-height: 16mm;
-      width: auto;
-      height: auto;
-      object-fit: contain;
     }
     .receipt-text {
       width: ${layout.printableWidthMm}mm;
@@ -155,7 +141,6 @@ export async function printReceiptDocument(
 <body>
   <div class="receipt" id="receipt-root">
     <div class="receipt-inner">
-      ${logo}
       <div class="receipt-text">${bodyHtml}</div>
     </div>
   </div>

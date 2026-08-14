@@ -91,6 +91,9 @@ type BillDetailsViewProps = {
   accounts: AccountRow[];
   defaultAccountId: string | null;
   businessName?: string | null;
+  businessAddress?: string | null;
+  businessPhone?: string | null;
+  businessGstin?: string | null;
   receiptFooter?: string | null;
   logoUrl?: string | null;
   showLogoOnBill?: boolean;
@@ -565,6 +568,9 @@ export function BillDetailsView({
   accounts,
   defaultAccountId,
   businessName,
+  businessAddress,
+  businessPhone,
+  businessGstin,
   receiptFooter,
   logoUrl,
   showLogoOnBill = true,
@@ -607,7 +613,9 @@ export function BillDetailsView({
       items: items.map((item) => ({
         productName: item.product_name,
         quantity: item.quantity,
+        unitPrice: item.unit_price,
         rowTotal: item.row_total,
+        mrp: item.mrp,
       })),
       subtotal: bill.subtotal_amount,
       otherItemsAmount: bill.other_items_amount,
@@ -615,13 +623,19 @@ export function BillDetailsView({
       totalPayable: bill.total_payable_amount,
       receivedAmount: bill.received_amount_total,
       businessName,
+      businessAddress,
+      businessPhone,
+      businessGstin,
       receiptFooter,
       logoUrl,
       showLogoOnBill,
     }),
     [
       bill,
+      businessAddress,
+      businessGstin,
       businessName,
+      businessPhone,
       detail.customerName,
       detail.customerPhone,
       items,
@@ -894,6 +908,7 @@ export function BillDetailsView({
         open={receiptOpen}
         onOpenChange={setReceiptOpen}
         data={receiptData}
+        includePaidAmountInWhatsApp={false}
       />
     </>
   );

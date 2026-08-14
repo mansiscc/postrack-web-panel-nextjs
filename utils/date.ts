@@ -45,3 +45,23 @@ export function dateRangePresets(preset: Exclude<DateRangePreset, "custom">) {
       return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
   }
 }
+
+/**
+ * Android SalesAnalyticsViewModel.resolveDailyReportDate:
+ * Today / This Week / This Month → today;
+ * Custom → single day if start==end, else range end.
+ */
+export function resolveDailySalesReportDateIso(input: {
+  preset: DateRangePreset;
+  from?: string | null;
+  to?: string | null;
+}): string {
+  const today = format(new Date(), "yyyy-MM-dd");
+  const preset = input.preset === "last7" ? "week" : input.preset;
+  if (preset !== "custom") return today;
+
+  const from = input.from?.trim() || "";
+  const to = input.to?.trim() || "";
+  if (from && to) return from === to ? from : to;
+  return to || from || today;
+}

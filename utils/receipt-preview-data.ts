@@ -3,12 +3,15 @@ export type ReceiptPreviewData = {
   createdAt: string;
   customerName: string;
   customerPhone: string;
+  /** Kept for WhatsApp share; not printed on thermal receipt (matches Android). */
   paymentMode: string;
   status?: string | null;
   items: Array<{
     productName: string;
     quantity: number;
+    unitPrice: number;
     rowTotal: number;
+    mrp?: number | null;
   }>;
   subtotal: number;
   otherItemsAmount: number;
@@ -16,6 +19,9 @@ export type ReceiptPreviewData = {
   totalPayable: number;
   receivedAmount: number;
   businessName?: string | null;
+  businessAddress?: string | null;
+  businessPhone?: string | null;
+  businessGstin?: string | null;
   receiptFooter?: string | null;
   /** Public https URL of the business logo (Cloudinary / storage). */
   logoUrl?: string | null;

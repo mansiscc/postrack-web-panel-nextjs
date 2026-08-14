@@ -38,6 +38,7 @@ export type SaveBillLineItem = {
   productName: string;
   barcode?: string | null;
   unitPrice: number;
+  mrp?: number | null;
   quantity: number;
   batchId?: string | null;
   isManual?: boolean;
@@ -350,6 +351,7 @@ export async function saveBill(user: SessionUser, input: SaveBillInput) {
         quantity: item.quantity,
         row_total: Number((item.unitPrice * item.quantity).toFixed(2)),
         batch_id: item.batchId ?? null,
+        mrp: item.mrp ?? null,
       })),
     );
   }

@@ -81,6 +81,9 @@ type BillingWorkspaceProps = {
   customers: CustomerRow[];
   defaultAccountId: string | null;
   businessName?: string | null;
+  businessAddress?: string | null;
+  businessPhone?: string | null;
+  businessGstin?: string | null;
   receiptFooter?: string | null;
   logoUrl?: string | null;
   showLogoOnBill?: boolean;
@@ -90,6 +93,7 @@ type BatchOption = {
   id: string;
   name: string;
   selling_price: number | null;
+  mrp: number | null;
   quantity_remaining: number;
 };
 
@@ -104,6 +108,9 @@ export function BillingWorkspace({
   customers,
   defaultAccountId,
   businessName,
+  businessAddress,
+  businessPhone,
+  businessGstin,
   receiptFooter,
   logoUrl,
   showLogoOnBill = true,
@@ -176,6 +183,7 @@ export function BillingWorkspace({
         productName: product.name,
         barcode: product.barcode,
         unitPrice,
+        mrp: batch?.mrp ?? product.mrp ?? null,
         quantity: 1,
         batchId: batch?.id ?? null,
         batchName: batch?.name ?? null,
@@ -260,7 +268,9 @@ export function BillingWorkspace({
         items: cart.items.map((item) => ({
           productName: item.productName,
           quantity: item.quantity,
+          unitPrice: item.unitPrice,
           rowTotal: Number((item.unitPrice * item.quantity).toFixed(2)),
+          mrp: item.mrp ?? null,
         })),
         subtotal: totals.subtotal,
         otherItemsAmount: totals.otherItemsAmount,
@@ -271,6 +281,9 @@ export function BillingWorkspace({
         status: totals.status,
         createdAt: new Date().toISOString(),
         businessName,
+        businessAddress,
+        businessPhone,
+        businessGstin,
         receiptFooter,
         logoUrl,
         showLogoOnBill,
@@ -282,6 +295,7 @@ export function BillingWorkspace({
           productName: item.productName,
           barcode: item.barcode,
           unitPrice: item.unitPrice,
+          mrp: item.mrp ?? null,
           quantity: item.quantity,
           batchId: item.batchId,
           isManual: item.isManual,

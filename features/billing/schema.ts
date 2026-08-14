@@ -7,6 +7,7 @@ const cartItemSchema = z.object({
   productName: z.string().min(1),
   barcode: z.string().optional().nullable(),
   unitPrice: z.number().min(0),
+  mrp: z.number().min(0).optional().nullable(),
   quantity: z.number().positive(),
   batchId: z.string().uuid().optional().nullable(),
   batchName: z.string().optional().nullable(),

@@ -1,4 +1,4 @@
-export type ReceiptPaperWidth = "58mm" | "80mm";
+export type ReceiptPaperWidth = "58mm" | "76mm" | "80mm";
 
 export type PrintSettings = {
   paperWidth: ReceiptPaperWidth;
@@ -15,6 +15,10 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   openLabelsAfterStockIn: true,
 };
 
+function isReceiptPaperWidth(value: unknown): value is ReceiptPaperWidth {
+  return value === "58mm" || value === "76mm" || value === "80mm";
+}
+
 export function readPrintSettings(): PrintSettings {
   if (typeof window === "undefined") return DEFAULT_PRINT_SETTINGS;
   try {
@@ -22,10 +26,9 @@ export function readPrintSettings(): PrintSettings {
     if (!raw) return DEFAULT_PRINT_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<PrintSettings>;
     return {
-      paperWidth:
-        parsed.paperWidth === "58mm" || parsed.paperWidth === "80mm"
-          ? parsed.paperWidth
-          : DEFAULT_PRINT_SETTINGS.paperWidth,
+      paperWidth: isReceiptPaperWidth(parsed.paperWidth)
+        ? parsed.paperWidth
+        : DEFAULT_PRINT_SETTINGS.paperWidth,
       openReceiptAfterSave:
         typeof parsed.openReceiptAfterSave === "boolean"
           ? parsed.openReceiptAfterSave
@@ -46,5 +49,7 @@ export function writePrintSettings(settings: PrintSettings) {
 
 /** CSS max-width for on-screen receipt preview (roll / media width). */
 export function paperWidthToMaxCss(width: ReceiptPaperWidth): string {
-  return width === "58mm" ? "58mm" : "80mm";
+  if (width === "58mm") return "58mm";
+  if (width === "76mm") return "76mm";
+  return "80mm";
 }

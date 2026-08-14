@@ -9,6 +9,7 @@ import {
   getPurchaseInsights,
   getSalesAnalytics,
 } from "@/repositories/analytics.repository";
+import { getCompanyById } from "@/repositories/companies.repository";
 import { listTransactions } from "@/repositories/transactions.repository";
 import { createClient } from "@/lib/supabase/server";
 import { actionError, actionSuccess, type ActionResult } from "@/utils/action-result";
@@ -72,6 +73,62 @@ export async function exportSalesAnalyticsCsvAction(
     return actionSuccess({
       filename: `sales-analytics-${format(new Date(), "yyyy-MM-dd")}.csv`,
       csv,
+    });
+  } catch (error) {
+    return actionError(getErrorMessage(error));
+  }
+}
+
+/**
+ * Android `TransactionDayPrintCoordinator.printDay` data:
+ * income entries with Sales category for one day + business name.
+ */
+export async function getDailySalesPrintDataAction(
+  dateIso: string,
+): Promise<
+  ActionResult<{
+    businessName: string;
+    dateIso: string;
+    items: Array<{
+      remarks: string | null;
+      amount: number;
+      createdAt: string;
+    }>;
+  }>
+> {
+  try {
+    const user = await requireAdminOrManager();
+    const trimmed = dateIso.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return actionError("Invalid date");
+    }
+
+    const supabase = await createClient();
+    const [company, txResult] = await Promise.all([
+      getCompanyById(supabase, user.companyId),
+      listTransactions(supabase, {
+        entryType: "income",
+        dateFrom: trimmed,
+        dateTo: trimmed,
+      }),
+    ]);
+
+    const items = txResult.items
+      .filter(
+        (row) =>
+          row.entry_type === "income" &&
+          row.category_name.trim().toLowerCase() === "sales",
+      )
+      .map((row) => ({
+        remarks: row.remarks,
+        amount: row.amount,
+        createdAt: row.created_at,
+      }));
+
+    return actionSuccess({
+      businessName: company?.business_name?.trim() || "",
+      dateIso: trimmed,
+      items,
     });
   } catch (error) {
     return actionError(getErrorMessage(error));

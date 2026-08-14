@@ -36,6 +36,9 @@ export default async function BillDetailsPage({
       accounts={accounts}
       defaultAccountId={defaultAccount?.id ?? accounts[0]?.id ?? null}
       businessName={profile?.business_name}
+      businessAddress={profile?.address}
+      businessPhone={profile?.phone}
+      businessGstin={profile?.gstin}
       receiptFooter={profile?.receipt_footer}
       logoUrl={profile?.logo_url}
       showLogoOnBill={profile?.show_logo_on_bill ?? true}

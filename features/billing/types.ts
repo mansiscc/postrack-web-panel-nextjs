@@ -4,6 +4,8 @@ export type CartItem = {
   productName: string;
   barcode?: string | null;
   unitPrice: number;
+  /** Snapshot MRP for “Saved on MRP” receipt line (Android parity). */
+  mrp?: number | null;
   quantity: number;
   batchId?: string | null;
   batchName?: string | null;

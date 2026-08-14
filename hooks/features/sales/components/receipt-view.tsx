@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageCircle, Printer } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,133 +12,135 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatCurrency } from "@/utils/currency";
-import { formatDateTime } from "@/utils/date";
 import { printReceiptDocument } from "@/utils/print-receipt-document";
 import {
   readPrintSettings,
   type ReceiptPaperWidth,
 } from "@/utils/print-settings";
+import { type ReceiptPreviewData } from "@/utils/receipt-preview-data";
 import {
-  shouldShowReceiptLogo,
-  type ReceiptPreviewData,
-} from "@/utils/receipt-preview-data";
-import { getReceiptPrintLayout } from "@/utils/receipt-print-layout";
+  RECEIPT_MONO_FONT,
+  buildReceiptLines,
+  ensureReceiptMonoFontLoaded,
+  getReceiptPreviewShellStyle,
+  getReceiptRenderMeta,
+  toReceiptNbspLine,
+} from "@/utils/receipt-render";
+import { receiptLineStyle } from "@/utils/receipt-text-formatter";
 import { shareBillOnWhatsApp } from "@/utils/share-bill-whatsapp";
 
 export type { ReceiptPreviewData };
 
-export function ReceiptPreview({ data }: { data: ReceiptPreviewData }) {
+export function ReceiptPreview({
+  data,
+  active = true,
+}: {
+  data: ReceiptPreviewData;
+  /** When false (dialog closed), skip work; when true, re-read paper size. */
+  active?: boolean;
+}) {
   const [paperWidth, setPaperWidth] = useState<ReceiptPaperWidth>("80mm");
+  const [fontReady, setFontReady] = useState(false);
 
   useEffect(() => {
+    if (!active) return;
+    // Re-read local setting each time preview is shown (size can change in Business Profile).
     setPaperWidth(readPrintSettings().paperWidth);
-  }, []);
+    ensureReceiptMonoFontLoaded();
+    let cancelled = false;
+    const ready = async () => {
+      try {
+        if (document.fonts?.load) {
+          await Promise.all([
+            document.fonts.load(`400 ${11}px "Roboto Mono"`),
+            document.fonts.load(`700 ${11}px "Roboto Mono"`),
+          ]);
+        }
+        if (document.fonts?.ready) await document.fonts.ready;
+      } catch {
+        // Fallback fonts still render.
+      }
+      if (!cancelled) setFontReady(true);
+    };
+    void ready();
+    return () => {
+      cancelled = true;
+    };
+  }, [active]);
 
-  const layout = getReceiptPrintLayout(paperWidth);
-  const logoSrc = data.logoUrl?.trim() || "";
-  const showLogo = shouldShowReceiptLogo(data);
-  const businessTitle = data.businessName?.trim() || "POSTrack Receipt";
+  const { layout, outer } = getReceiptPreviewShellStyle(paperWidth);
+  const { showLogo, logoSrc, businessName } = getReceiptRenderMeta(data);
+  const lines = useMemo(
+    () => buildReceiptLines(data, paperWidth),
+    [data, paperWidth],
+  );
+  const chars = layout.charactersPerLine;
 
   return (
-    <div
-      className="mx-auto bg-white text-black"
-      style={{
-        width: `${layout.paperWidthMm}mm`,
-        maxWidth: "100%",
-        padding: `8px ${layout.sideMarginMm}mm`,
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: `${layout.printableWidthMm}mm` }}>
-      <div className="mb-4 text-center">
-        {showLogo ? (
-          // eslint-disable-next-line @next/next/no-img-element -- receipt print/preview needs a plain img URL
-          <img
-            src={logoSrc}
-            alt={businessTitle}
-            className="mx-auto mb-2 max-h-16 w-auto max-w-[70%] object-contain"
-          />
-        ) : null}
-        <h1 className="text-lg font-bold">{businessTitle}</h1>
-        {data.billNumber ? <p className="text-sm">{data.billNumber}</p> : null}
-        <p className="text-xs text-gray-600">
-          {formatDateTime(data.createdAt)}
-        </p>
-      </div>
-
-      <div className="mb-4 text-sm">
-        <p>
-          <span className="font-medium">Customer:</span> {data.customerName}
-        </p>
-        {data.customerPhone ? <p>Phone: {data.customerPhone}</p> : null}
-        <p>Payment: {data.paymentMode}</p>
-        {data.status ? <p>Status: {data.status}</p> : null}
-      </div>
-
-      <table className="mb-4 w-full text-sm">
-        <thead>
-          <tr className="border-b border-black/20">
-            <th className="py-1 text-left font-medium">Item</th>
-            <th className="py-1 font-medium">Qty</th>
-            <th className="py-1 text-right font-medium">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.items.map((item, index) => (
-            <tr
-              key={`${item.productName}-${index}`}
-              className="border-b border-dashed border-black/20"
-            >
-              <td className="py-1 pr-2">{item.productName}</td>
-              <td className="py-1 text-center tabular-nums">{item.quantity}</td>
-              <td className="py-1 text-right tabular-nums">
-                {formatCurrency(item.rowTotal)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div className="space-y-1 text-sm">
-        <div className="flex justify-between">
-          <span>Subtotal</span>
-          <span className="tabular-nums">{formatCurrency(data.subtotal)}</span>
-        </div>
-        {data.otherItemsAmount > 0 ? (
-          <div className="flex justify-between">
-            <span>Other items</span>
-            <span className="tabular-nums">
-              {formatCurrency(data.otherItemsAmount)}
-            </span>
-          </div>
-        ) : null}
-        {data.discountAmount > 0 ? (
-          <div className="flex justify-between">
-            <span>Discount</span>
-            <span className="tabular-nums">
-              -{formatCurrency(data.discountAmount)}
-            </span>
-          </div>
-        ) : null}
-        <div className="flex justify-between border-t border-black/20 pt-2 text-base font-bold">
-          <span>Total</span>
-          <span className="tabular-nums">
-            {formatCurrency(data.totalPayable)}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>Received</span>
-          <span className="tabular-nums">
-            {formatCurrency(data.receivedAmount)}
-          </span>
-        </div>
-      </div>
-
-      {data.receiptFooter?.trim() ? (
-        <p className="mt-4 text-center text-xs text-gray-600">
-          {data.receiptFooter}
-        </p>
+    <div className="mx-auto bg-white text-black" style={outer}>
+      {showLogo ? (
+        // eslint-disable-next-line @next/next/no-img-element -- receipt print/preview needs a plain img URL
+        <img
+          src={logoSrc}
+          alt={businessName}
+          className="mx-auto mb-2 max-h-16 w-auto max-w-[70%] object-contain"
+        />
       ) : null}
+
+      <div
+        style={{
+          fontFamily: RECEIPT_MONO_FONT,
+          fontSize: `${layout.bodyFontPx}px`,
+          lineHeight: 1.25,
+          width: `${chars}ch`,
+          maxWidth: "100%",
+          color: "#000",
+          fontVariantLigatures: "none",
+          fontKerning: "none",
+          fontSynthesis: "none",
+          fontFeatureSettings: '"tnum"',
+          opacity: fontReady ? 1 : 0.99,
+        }}
+      >
+        {lines.map((line, index) => {
+          const style = receiptLineStyle(line, businessName);
+
+          // Company name: CSS-center (Android PDF measures text; space-padding
+          // breaks when title uses a larger font size).
+          if (style === "title") {
+            return (
+              <div
+                key={index}
+                style={{
+                  textAlign: "center",
+                  fontWeight: 700,
+                  fontSize: `${layout.titleFontPx}px`,
+                  width: "100%",
+                  whiteSpace: "normal",
+                }}
+              >
+                {businessName}
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={index}
+              style={{
+                // Same size for every column line — required for alignment.
+                fontSize: `${layout.bodyFontPx}px`,
+                fontWeight: style === "emph" ? 700 : 400,
+                whiteSpace: "pre",
+                width: `${chars}ch`,
+                maxWidth: "100%",
+                overflow: "hidden",
+              }}
+            >
+              {toReceiptNbspLine(line, chars)}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -148,14 +150,21 @@ type ReceiptDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: ReceiptPreviewData | null;
+  /**
+   * Android: Paid Amount on billing "Save & WhatsApp";
+   * omit on bill-detail "Share on WhatsApp".
+   */
+  includePaidAmountInWhatsApp?: boolean;
 };
 
 export function ReceiptDialog({
   open,
   onOpenChange,
   data,
+  includePaidAmountInWhatsApp = true,
 }: ReceiptDialogProps) {
   const [isPrinting, startPrint] = useTransition();
+  const [isSharing, startShare] = useTransition();
 
   const handlePrint = () => {
     if (!data) return;
@@ -172,24 +181,22 @@ export function ReceiptDialog({
 
   const handleWhatsApp = () => {
     if (!data) return;
-    shareBillOnWhatsApp({
-      businessName: data.businessName,
-      billNumber: data.billNumber,
-      createdAt: data.createdAt,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone,
-      items: data.items,
-      otherItemsAmount: data.otherItemsAmount,
-      totalPayable: data.totalPayable,
-      receivedAmount: data.receivedAmount,
-      paymentMode: data.paymentMode,
-      status: data.status,
+    startShare(async () => {
+      try {
+        await shareBillOnWhatsApp(data, {
+          includePaidAmount: includePaidAmountInWhatsApp,
+        });
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to share on WhatsApp",
+        );
+      }
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] gap-0 overflow-y-auto p-0 sm:max-w-md">
+      <DialogContent className="max-h-[90dvh] gap-0 overflow-y-auto p-0 sm:max-w-lg">
         <DialogHeader className="border-b border-border/60 px-5 py-4 pr-12">
           <DialogTitle>
             {data?.billNumber ? `Bill ${data.billNumber}` : "Receipt"}
@@ -197,8 +204,8 @@ export function ReceiptDialog({
         </DialogHeader>
 
         {data ? (
-          <div className="px-5 py-4">
-            <ReceiptPreview data={data} />
+          <div className="overflow-x-auto px-5 py-4">
+            <ReceiptPreview data={data} active={open} />
           </div>
         ) : null}
 
@@ -206,15 +213,20 @@ export function ReceiptDialog({
           <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
             <Button
               type="button"
-              disabled={!data || isPrinting}
+              disabled={!data || isPrinting || isSharing}
               onClick={handlePrint}
             >
               <Printer />
               {isPrinting ? "Printing…" : "Print / Save PDF"}
             </Button>
-            <Button type="button" variant="outline" onClick={handleWhatsApp}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!data || isSharing}
+              onClick={handleWhatsApp}
+            >
               <MessageCircle />
-              WhatsApp
+              {isSharing ? "Sharing…" : "WhatsApp"}
             </Button>
           </div>
         </DialogFooter>

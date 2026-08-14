@@ -9,16 +9,22 @@ import {
   Wallet,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { DateRangeToolbar } from "@/hooks/features/analytics/components/date-range-toolbar";
 import { PaymentBreakdown } from "@/hooks/features/analytics/components/payment-breakdown";
-import { exportSalesAnalyticsCsvAction } from "@/hooks/features/analytics/actions";
+import {
+  exportSalesAnalyticsCsvAction,
+  getDailySalesPrintDataAction,
+} from "@/hooks/features/analytics/actions";
 import type { SalesAnalyticsSummary } from "@/repositories/analytics.repository";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatNumber } from "@/utils/currency";
 import { downloadCsv } from "@/utils/csv";
 import type { DateRangePreset } from "@/utils/date";
+import { resolveDailySalesReportDateIso } from "@/utils/date";
+import { printDailySalesDocument } from "@/utils/print-daily-sales-document";
 
 type SalesAnalyticsPanelProps = {
   summary: SalesAnalyticsSummary;
@@ -187,6 +193,7 @@ export function SalesAnalyticsPanel({
   summary,
 }: SalesAnalyticsPanelProps) {
   const searchParams = useSearchParams();
+  const [isPrinting, startPrint] = useTransition();
   const preset = (searchParams.get("preset") as DateRangePreset) || "today";
 
   const itemsSold = summary.topProducts.reduce(
@@ -224,9 +231,45 @@ export function SalesAnalyticsPanel({
     downloadCsv(result.data.filename, result.data.csv);
   };
 
+  const handlePrint = () => {
+    startPrint(async () => {
+      try {
+        const dateIso = resolveDailySalesReportDateIso({
+          preset,
+          from: searchParams.get("from"),
+          to: searchParams.get("to"),
+        });
+        const result = await getDailySalesPrintDataAction(dateIso);
+        if (!result.success) {
+          toast.error(result.error);
+          return;
+        }
+        if (!result.data.businessName) {
+          toast.error("Business profile is missing");
+          return;
+        }
+        await printDailySalesDocument({
+          businessName: result.data.businessName,
+          dateIso: result.data.dateIso,
+          items: result.data.items,
+        });
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to print daily sales",
+        );
+      }
+    });
+  };
+
   return (
     <div className="space-y-3.5">
-      <DateRangeToolbar showExport onExport={handleExport} />
+      <DateRangeToolbar
+        showExport
+        onExport={handleExport}
+        showPrint
+        onPrint={handlePrint}
+        printPending={isPrinting}
+      />
 
       {/* KPI row */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -35,6 +35,24 @@ import {
   bindGstinInput,
   bindPhoneInput,
 } from "@/lib/validation/rhf";
+import { cn } from "@/lib/utils";
+import {
+  DEFAULT_PRINT_SETTINGS,
+  readPrintSettings,
+  writePrintSettings,
+  type ReceiptPaperWidth,
+} from "@/utils/print-settings";
+
+/** Android Device Manager paper-size options. */
+const PAPER_SIZE_OPTIONS: Array<{
+  value: ReceiptPaperWidth;
+  label: string;
+  hint: string;
+}> = [
+  { value: "58mm", label: "58mm", hint: "Compact receipt roll" },
+  { value: "76mm", label: "76mm", hint: "Medium receipt roll" },
+  { value: "80mm", label: "80mm", hint: "Standard POS roll" },
+];
 
 type BusinessProfileFormProps = {
   initial: BusinessProfileInput;
@@ -46,15 +64,29 @@ export function BusinessProfileForm({
   canEdit,
 }: BusinessProfileFormProps) {
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
+  const [paperWidth, setPaperWidth] = useState<ReceiptPaperWidth>(
+    DEFAULT_PRINT_SETTINGS.paperWidth,
+  );
   const form = useForm<BusinessProfileInput>({
     resolver: zodResolver(businessProfileSchema),
     defaultValues: initial,
   });
 
+  useEffect(() => {
+    setPaperWidth(readPrintSettings().paperWidth);
+  }, []);
+
   const businessName = form.watch("businessName");
   const previousRemoteLogoUrl = isRemoteImageUrl(initial.logoUrl)
     ? initial.logoUrl
     : null;
+
+  const handlePaperWidthChange = (next: ReceiptPaperWidth) => {
+    // Android DeviceManagerViewModel.selectPaperSize — persist immediately on tap.
+    const current = readPrintSettings();
+    writePrintSettings({ ...current, paperWidth: next });
+    setPaperWidth(next);
+  };
 
   const onSubmit = form.handleSubmit(async (values) => {
     let logoUrl: string | null;
@@ -262,10 +294,7 @@ export function BusinessProfileForm({
 
           <Card className="h-full">
             <CardHeader className="border-b border-border/60">
-              <CardTitle>Receipt Details</CardTitle>
-              <CardDescription>
-                Used in bill number: e.g. B2606-1
-              </CardDescription>
+              <CardTitle>Receipt Details</CardTitle>  
             </CardHeader>
             <CardContent className="grid gap-4 pt-0">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -311,6 +340,55 @@ export function BusinessProfileForm({
                   {...form.register("receiptFooter")}
                 />
               </FormField>
+
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">
+                    Receipt paper size
+                  </Label>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    Choose the paper width used by your thermal printer so bills
+                    fit correctly. Applies immediately on this browser (not part
+                    of Save).
+                  </p>
+                </div>
+                <div
+                  role="radiogroup"
+                  aria-label="Receipt paper size"
+                  className="grid grid-cols-3 gap-2"
+                >
+                  {PAPER_SIZE_OPTIONS.map((option) => {
+                    const selected = paperWidth === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => handlePaperWidthChange(option.value)}
+                        className={cn(
+                          "rounded-xl border px-3 py-3 text-left transition-colors",
+                          selected
+                            ? "border-primary/40 bg-primary/10"
+                            : "border-border/60 bg-surface-variant/40 hover:bg-muted/50",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "block text-[13px] font-semibold",
+                            selected ? "text-primary" : "text-foreground",
+                          )}
+                        >
+                          {option.label}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          {option.hint}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
