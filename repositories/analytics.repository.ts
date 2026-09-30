@@ -59,13 +59,17 @@ function mapSalesAnalyticsPayload(payload: unknown): SalesAnalyticsSummary {
   const topProducts = Array.isArray(data.top_products)
     ? data.top_products.map((item) => {
         const row = item as Record<string, unknown>;
+        const netQty = Number(row.net_qty ?? row.quantity ?? 0);
+        const netRevenue = Number(row.net_revenue ?? row.revenue ?? 0);
+        const cogs = Number(row.cogs ?? 0);
+        const profit = Number(row.profit ?? Math.max(netRevenue - cogs, 0));
         return {
           productId: String(row.product_id ?? ""),
           productName: String(row.product_name ?? "Unknown"),
-          netQty: Number(row.net_qty ?? 0),
-          netRevenue: Number(row.net_revenue ?? 0),
-          cogs: Number(row.cogs ?? 0),
-          profit: Number(row.profit ?? 0),
+          netQty,
+          netRevenue,
+          cogs,
+          profit,
         };
       })
     : [];
@@ -80,19 +84,24 @@ function mapSalesAnalyticsPayload(payload: unknown): SalesAnalyticsSummary {
     : [];
 
   const totalSales = Number(data.total_sales ?? 0);
+  const totalReceived = Number(data.total_received ?? 0);
+  const returnAmount = Number(data.return_amount ?? 0);
   const cogs = Number(data.cogs ?? 0);
-  const salesProfit = Number(data.sales_profit ?? 0);
+  const netSales = Number(data.net_sales ?? Math.max(totalSales - returnAmount, 0));
+  const salesProfit = Number(
+    data.sales_profit ?? data.gross_profit ?? Math.max(netSales - cogs, 0),
+  );
 
   return {
     billCount: Number(data.bill_count ?? 0),
     totalSales,
-    totalReceived: Number(data.total_received ?? 0),
+    totalReceived,
     cashTotal: Number(data.cash_total ?? 0),
     upiTotal: Number(data.upi_total ?? 0),
     cardTotal: Number(data.card_total ?? 0),
     returnCount: Number(data.return_count ?? 0),
-    returnAmount: Number(data.return_amount ?? 0),
-    netSales: Number(data.net_sales ?? 0),
+    returnAmount,
+    netSales,
     cogs,
     salesProfit,
     topProducts,
@@ -121,15 +130,19 @@ export async function getPurchaseInsights(
   const startDate = format(params.start, "yyyy-MM-dd");
   const endDate = format(params.end, "yyyy-MM-dd");
 
-  const { data: purchases, error } = await supabase
+  const { data: allPurchases, error } = await supabase
     .from("stock_in")
     .select("id, date, total_amount, total_items, supplier_id, invoice_number")
     .gte("date", startDate)
-    .lte("date", endDate)
-    .neq("invoice_number", "OPENING");
+    .lte("date", endDate);
 
   if (error) throw mapSupabaseError(error);
-  if (!purchases?.length) {
+
+  const purchases = (allPurchases ?? []).filter(
+    (p) => p.invoice_number !== "OPENING",
+  );
+
+  if (!purchases.length) {
     return {
       purchaseCount: 0,
       totalSpend: 0,

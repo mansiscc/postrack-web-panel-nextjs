@@ -38,9 +38,12 @@ export async function getSalesAnalyticsSummary(
 
   // Always daily buckets — matches app "Sales Trend (Daily)" for week/month
   // and keeps axis labels as dates (not Jul / W30).
+  // SQL uses `created_at < p_end`, so end boundary is start of next millisecond / day
+  const exclusiveEnd = new Date(to.getTime() + 1);
+
   return getSalesAnalytics(supabase, {
     start: from.toISOString(),
-    end: to.toISOString(),
+    end: exclusiveEnd.toISOString(),
     bucket: "day",
   });
 }
