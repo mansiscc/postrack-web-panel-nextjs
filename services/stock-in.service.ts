@@ -39,25 +39,35 @@ export async function getPurchaseDetail(purchaseId: string) {
 
   if (!header) return null;
 
+  const shouldFetchSupplier =
+    header.invoice_number !== "OPENING" && Boolean(header.supplier_id);
+  const shouldFetchAccount = Boolean(header.account_id);
+
+  const [supplierResult, accountResult] = await Promise.all([
+    shouldFetchSupplier
+      ? supabase
+          .from("suppliers")
+          .select("supplier_name")
+          .eq("id", header.supplier_id!)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    shouldFetchAccount
+      ? supabase
+          .from("accounts")
+          .select("name")
+          .eq("id", header.account_id!)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
   let supplierName = "Walk-in Purchase";
   if (header.invoice_number === "OPENING") {
     supplierName = "Opening Stock";
   } else if (header.supplier_id) {
-    const { data } = await supabase
-      .from("suppliers")
-      .select("supplier_name")
-      .eq("id", header.supplier_id)
-      .maybeSingle();
-    supplierName = data?.supplier_name ?? supplierName;
+    supplierName = supplierResult.data?.supplier_name ?? supplierName;
   }
 
-  let accountName: string | null = null;
-  const { data: account } = await supabase
-    .from("accounts")
-    .select("name")
-    .eq("id", header.account_id)
-    .maybeSingle();
-  accountName = account?.name ?? null;
+  const accountName = accountResult.data?.name ?? null;
 
   return { header, items, supplierName, accountName };
 }

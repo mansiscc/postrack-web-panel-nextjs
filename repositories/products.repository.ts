@@ -86,7 +86,7 @@ export async function listProducts(
     query = query.eq("is_deleted", false).eq("is_active", true);
   } else if (params.status === "inactive") {
     query = query.eq("is_deleted", false).eq("is_active", false);
-  } else if (params.status && params.status !== "all") {
+  } else if (params.status !== "all") {
     query = query.eq("is_deleted", false);
   }
 

@@ -102,17 +102,20 @@ export async function getBillDetail(billId: string) {
 
   if (!bill) return null;
 
-  let customerName = "Walk-in";
-  let customerPhone = "";
-  if (bill.customer_id) {
-    const { data } = await supabase
-      .from("customers")
-      .select("name, phone")
-      .eq("id", bill.customer_id)
-      .maybeSingle();
-    customerName = data?.name ?? customerName;
-    customerPhone = data?.phone ?? "";
-  }
+  const returnIds = returns.map((row) => row.id);
+  const [customerResult, returnItems] = await Promise.all([
+    bill.customer_id
+      ? supabase
+          .from("customers")
+          .select("name, phone")
+          .eq("id", bill.customer_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    listBillReturnItems(supabase, returnIds),
+  ]);
+
+  const customerName = customerResult.data?.name ?? "Walk-in";
+  const customerPhone = customerResult.data?.phone ?? "";
 
   const itemsWithReturnable = items.map((item) => {
     const returnedQty = returnedMap.get(item.id) ?? 0;
@@ -123,10 +126,6 @@ export async function getBillDetail(billId: string) {
     };
   });
 
-  const returnItems = await listBillReturnItems(
-    supabase,
-    returns.map((row) => row.id),
-  );
   const returnItemsByReturnId = new Map<string, typeof returnItems>();
   for (const item of returnItems) {
     const list = returnItemsByReturnId.get(item.return_id) ?? [];

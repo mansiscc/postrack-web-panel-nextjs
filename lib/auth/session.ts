@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { fetchUserProfile, isUserAccountActive } from "@/lib/auth/fetch-profile";
@@ -5,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ModuleKey, SessionUser } from "@/types/auth";
 import { canAccessModule } from "@/utils/permissions";
 
-export async function getAuthProfile(): Promise<SessionUser | null> {
+export const getAuthProfile = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,13 +18,13 @@ export async function getAuthProfile(): Promise<SessionUser | null> {
   if (!profile || !isUserAccountActive(profile)) return null;
 
   return profile;
-}
+});
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const profile = await getAuthProfile();
   if (!profile || !profile.companyIsActive) return null;
   return profile;
-}
+});
 
 export async function requireSessionUser(): Promise<SessionUser> {
   const sessionUser = await getSessionUser();
