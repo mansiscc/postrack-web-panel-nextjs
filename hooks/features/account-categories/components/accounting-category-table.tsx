@@ -186,7 +186,7 @@ export function AccountingCategoryTable({
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => (
           <RowActions
             onEdit={() => {

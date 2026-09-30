@@ -65,19 +65,27 @@ export function DataTable<TData, TValue>({
           <TableHeader className="bg-muted/60">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="h-10 px-3.5 text-[11px] font-semibold leading-normal tracking-[0.04em] text-muted-foreground uppercase"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const isAction =
+                    header.id.toLowerCase().includes("action") ||
+                    header.column.id.toLowerCase().includes("action");
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        "h-10 px-3.5 text-[11px] font-semibold leading-normal tracking-[0.04em] text-muted-foreground uppercase",
+                        isAction && "text-right",
+                      )}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -104,17 +112,28 @@ export function DataTable<TData, TValue>({
                     onRowClick(row.original);
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className="px-3.5 py-2.5 text-[13px] leading-snug"
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const isAction =
+                      cell.column.id.toLowerCase().includes("action") ||
+                      (cell.column.columnDef.id &&
+                        cell.column.columnDef.id
+                          .toLowerCase()
+                          .includes("action"));
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          "px-3.5 py-2.5 text-[13px] leading-snug",
+                          isAction && "text-right",
+                        )}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (

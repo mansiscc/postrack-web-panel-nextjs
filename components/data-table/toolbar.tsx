@@ -16,7 +16,7 @@ export function DataTableToolbar({
   return (
     <div
       className={cn(
-        "mb-3.5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between",
+        "mb-3.5 flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between",
         className,
       )}
     >

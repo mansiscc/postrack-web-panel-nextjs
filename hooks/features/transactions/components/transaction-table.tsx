@@ -211,18 +211,22 @@ export function TransactionTable({
       },
       {
         id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-          <RowActions
-            onEdit={() => {
-              setEditing(row.original);
-              setSheetOpen(true);
-            }}
-            editDisabled={!canEditDelete || !row.original.isManual}
-            onDelete={() => setDeleteTarget(row.original)}
-            deleteDisabled={!canEditDelete || !row.original.isManual}
-          />
-        ),
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          if (!canEditDelete || !row.original.isManual) {
+            return null;
+          }
+
+          return (
+            <RowActions
+              onEdit={() => {
+                setEditing(row.original);
+                setSheetOpen(true);
+              }}
+              onDelete={() => setDeleteTarget(row.original)}
+            />
+          );
+        },
       },
     ],
     [canEditDelete],

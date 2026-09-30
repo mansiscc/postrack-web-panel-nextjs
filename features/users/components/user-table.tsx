@@ -205,7 +205,7 @@ export function UserTable({
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => {
           const user = row.original;
           const isSelf = user.id === currentUserId;

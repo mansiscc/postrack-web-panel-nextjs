@@ -126,7 +126,7 @@ export function CategoryTable({ categories, canDelete }: CategoryTableProps) {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => (
           <RowActions
             onEdit={() => {
