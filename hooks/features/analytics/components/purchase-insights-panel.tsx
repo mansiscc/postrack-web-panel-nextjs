@@ -44,7 +44,7 @@ function SectionCard({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-card shadow-card",
+        "flex min-h-0 flex-col overflow-hidden rounded-lg bg-card shadow-card",
         className,
       )}
     >
@@ -61,7 +61,7 @@ function SectionCard({
           {title}
         </span>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col p-3">{children}</div>
+      <div className="flex min-h-0 flex-col p-3">{children}</div>
     </div>
   );
 }
@@ -99,6 +99,11 @@ function SummaryKpiCard({
   );
 }
 
+import {
+  buildContinuousTrendPoints,
+  type ContinuousTrendPoint,
+} from "@/hooks/features/analytics/components/trend-bars";
+
 function formatTrendLabel(label: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(label)) {
     return String(Number(label.slice(8)));
@@ -112,10 +117,29 @@ function formatTrendLabel(label: string): string {
   return label;
 }
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+function formatTooltipLabel(label: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(label)) {
+    return formatDate(label, "dd MMM yyyy");
+  }
+  if (/^\d{1,2}$/.test(label)) {
+    return `${label.padStart(2, "0")}:00`;
+  }
+  return label;
+}
+
 function VerticalTrendChart({
   points,
+  isScrollable = false,
 }: {
-  points: Array<{ label: string; value: number }>;
+  points: Array<{ label: string; displayLabel?: string; value: number }>;
+  isScrollable?: boolean;
 }) {
   const hasTrend = points.some((point) => point.value > 0);
   if (!points.length || !hasTrend) {
@@ -127,50 +151,74 @@ function VerticalTrendChart({
   }
 
   const max = Math.max(...points.map((point) => Math.abs(point.value)), 1);
-  const showLabels = points.length <= 31;
-  const barAreaHeight = 160;
+  const barAreaHeight = 150;
 
   return (
-    <div className="overflow-x-auto">
+    <TooltipProvider delayDuration={0}>
       <div
-        className="flex min-w-full items-end gap-1 px-1"
-        style={{
-          minWidth: `${Math.max(points.length * 22, 100)}px`,
-          height: barAreaHeight + (showLabels ? 18 : 0),
-        }}
+        className={cn(
+          "w-full pt-1",
+          isScrollable ? "overflow-x-auto pb-2.5" : "overflow-hidden",
+        )}
       >
-        {points.map((point) => {
-          const fraction = Math.abs(point.value) / max;
-          const barHeight = Math.max(
-            fraction * barAreaHeight,
-            point.value > 0 ? 4 : 2,
-          );
-          return (
-            <div
-              key={point.label}
-              className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
-              title={`${point.label}: ${formatCurrency(point.value)}`}
-            >
-              <div
-                className={cn(
-                  "w-[70%] max-w-6 rounded-t-sm transition-all",
-                  point.value > 0 ? "bg-success/80" : "bg-border/60",
-                )}
-                style={{
-                  height: barHeight,
-                  opacity: point.value > 0 ? 0.55 + fraction * 0.45 : 0.35,
-                }}
-              />
-              {showLabels ? (
-                <span className="h-3.5 max-w-full truncate text-[10px] leading-none text-muted-foreground">
-                  {formatTrendLabel(point.label)}
-                </span>
-              ) : null}
-            </div>
-          );
-        })}
+        <div
+          className={cn(
+            "flex items-end gap-1 px-1",
+            isScrollable ? "min-w-full" : "w-full",
+          )}
+          style={{
+            minWidth: isScrollable
+              ? `${Math.max(points.length * 36, 100)}px`
+              : undefined,
+            height: `${barAreaHeight + 24}px`,
+          }}
+        >
+          {points.map((point) => {
+            const fraction = Math.abs(point.value) / max;
+            const barHeight = Math.max(
+              fraction * barAreaHeight,
+              point.value > 0 ? 4 : 2,
+            );
+            const labelText = point.displayLabel || formatTrendLabel(point.label);
+            return (
+              <Tooltip key={point.label}>
+                <TooltipTrigger asChild>
+                  <div
+                    className={cn(
+                      "group flex flex-1 cursor-pointer flex-col items-center justify-end px-0.5",
+                      isScrollable && "min-w-[36px]",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-[70%] max-w-6 rounded-t-sm transition-all group-hover:brightness-110",
+                        point.value > 0 ? "bg-success/80" : "bg-border/60",
+                      )}
+                      style={{
+                        height: barHeight,
+                        opacity: point.value > 0 ? 0.55 + fraction * 0.45 : 0.35,
+                      }}
+                    />
+                    <span className="mt-1.5 flex h-4 w-full items-center justify-center truncate text-[10px] font-medium leading-none text-muted-foreground select-none sm:text-[11px]">
+                      {labelText}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="flex items-center gap-1.5 px-3 py-1.5 text-xs shadow-md">
+                  <span className="font-semibold text-foreground">
+                    {formatTooltipLabel(point.label)}
+                  </span>
+                  <span className="text-muted-foreground">:</span>
+                  <span className="font-bold tabular-nums text-success">
+                    {formatCurrency(point.value)}
+                  </span>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
 
@@ -185,6 +233,7 @@ export function PurchaseInsightsPanel({
   summary,
 }: PurchaseInsightsPanelProps) {
   const searchParams = useSearchParams();
+  const preset = (searchParams.get("preset") as DateRangePreset) || "today";
   const avgPurchase =
     summary.purchaseCount > 0
       ? summary.totalSpend / summary.purchaseCount
@@ -192,7 +241,7 @@ export function PurchaseInsightsPanel({
 
   const handleExport = async () => {
     const result = await exportPurchaseInsightsCsvAction({
-      preset: (searchParams.get("preset") as DateRangePreset) || "today",
+      preset,
       from: searchParams.get("from") ?? undefined,
       to: searchParams.get("to") ?? undefined,
     });
@@ -343,19 +392,31 @@ export function PurchaseInsightsPanel({
       </div>
 
       {/* Desktop enrichment: trend + top products */}
-      <div className="grid gap-3.5 lg:grid-cols-2 lg:items-stretch">
+      <div className="grid gap-3.5 lg:grid-cols-2 lg:items-start">
         <SectionCard
-          title="Purchase Trend"
+          title={
+            preset === "today"
+              ? "Purchase Trend (Hourly)"
+              : preset === "week" || preset === "month" || preset === "last7"
+                ? "Purchase Trend (Daily)"
+                : "Purchase Trend"
+          }
           icon={TrendingUp}
           accent="text-success-icon"
           badgeBg="bg-success-muted"
-          className="min-h-52"
+          className="self-start"
         >
           <VerticalTrendChart
-            points={summary.trend.map((point) => ({
-              label: point.label,
-              value: point.spend,
-            }))}
+            points={buildContinuousTrendPoints(
+              summary.trend.map((point) => ({
+                label: point.label,
+                value: point.spend,
+              })),
+              preset,
+              searchParams.get("from"),
+              searchParams.get("to"),
+            )}
+            isScrollable={preset === "custom"}
           />
         </SectionCard>
 
@@ -364,7 +425,7 @@ export function PurchaseInsightsPanel({
           icon={Package}
           accent="text-violet-700"
           badgeBg="bg-violet-100"
-          className="min-h-52"
+          className="self-start"
         >
           {summary.topProducts.length === 0 ? (
             <p className="flex flex-1 items-center justify-center py-8 text-center text-sm text-muted-foreground">

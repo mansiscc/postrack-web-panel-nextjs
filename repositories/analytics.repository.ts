@@ -125,14 +125,14 @@ export async function getSalesAnalytics(
 
 export async function getPurchaseInsights(
   supabase: SupabaseClient<Database>,
-  params: { start: Date; end: Date },
+  params: { start: Date; end: Date; isHourly?: boolean },
 ): Promise<PurchaseInsightsSummary> {
   const startDate = format(params.start, "yyyy-MM-dd");
   const endDate = format(params.end, "yyyy-MM-dd");
 
   const { data: allPurchases, error } = await supabase
     .from("stock_in")
-    .select("id, date, total_amount, total_items, supplier_id, invoice_number")
+    .select("id, date, total_amount, total_items, supplier_id, invoice_number, created_at")
     .gte("date", startDate)
     .lte("date", endDate);
 
@@ -150,7 +150,12 @@ export async function getPurchaseInsights(
       topSuppliers: [],
       recentPurchases: [],
       topProducts: [],
-      trend: [],
+      trend: params.isHourly
+        ? Array.from({ length: 24 }, (_, h) => ({
+            label: String(h).padStart(2, "0"),
+            spend: 0,
+          }))
+        : [],
     };
   }
 
@@ -218,6 +223,29 @@ export async function getPurchaseInsights(
     trendMap.set(label, (trendMap.get(label) ?? 0) + (purchase.total_amount ?? 0));
   }
 
+  let trend: Array<{ label: string; spend: number }> = [];
+  if (params.isHourly) {
+    const hourlyMap = new Map<string, number>();
+    for (let h = 0; h < 24; h++) {
+      hourlyMap.set(String(h).padStart(2, "0"), 0);
+    }
+    for (const purchase of purchases) {
+      if (purchase.created_at) {
+        const hour = format(new Date(purchase.created_at), "HH");
+        const current = hourlyMap.get(hour) ?? 0;
+        hourlyMap.set(hour, current + (purchase.total_amount ?? 0));
+      }
+    }
+    trend = Array.from(hourlyMap.entries()).map(([label, spend]) => ({
+      label,
+      spend,
+    }));
+  } else {
+    trend = [...trendMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, spend]) => ({ label, spend }));
+  }
+
   const productTotals = new Map<
     string,
     { productId: string; productName: string; totalQty: number; totalSpend: number }
@@ -262,8 +290,6 @@ export async function getPurchaseInsights(
     topProducts: [...productTotals.values()]
       .sort((a, b) => b.totalSpend - a.totalSpend)
       .slice(0, 10),
-    trend: [...trendMap.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([label, spend]) => ({ label, spend })),
+    trend,
   };
 }

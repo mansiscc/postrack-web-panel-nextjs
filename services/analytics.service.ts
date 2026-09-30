@@ -36,10 +36,44 @@ export async function getSalesAnalyticsSummary(
   const supabase = await createClient();
   const { from, to } = resolveRange(range);
 
-  // Always daily buckets — matches app "Sales Trend (Daily)" for week/month
-  // and keeps axis labels as dates (not Jul / W30).
   // SQL uses `created_at < p_end`, so end boundary is start of next millisecond / day
   const exclusiveEnd = new Date(to.getTime() + 1);
+
+  if (range.preset === "today") {
+    // For Today, aggregate 24 hourly buckets (00..23) to match Android app's "Sales Trend (Hourly)"
+    const [summary, { data: bills }] = await Promise.all([
+      getSalesAnalytics(supabase, {
+        start: from.toISOString(),
+        end: exclusiveEnd.toISOString(),
+        bucket: "day",
+      }),
+      supabase
+        .from("bills")
+        .select("created_at, total_payable_amount")
+        .gte("created_at", from.toISOString())
+        .lt("created_at", exclusiveEnd.toISOString()),
+    ]);
+
+    const hourlyMap = new Map<string, number>();
+    for (let h = 0; h < 24; h++) {
+      hourlyMap.set(String(h).padStart(2, "0"), 0);
+    }
+
+    for (const bill of bills ?? []) {
+      if (bill.created_at) {
+        const hour = format(new Date(bill.created_at), "HH");
+        const current = hourlyMap.get(hour) ?? 0;
+        hourlyMap.set(hour, current + (bill.total_payable_amount ?? 0));
+      }
+    }
+
+    summary.trend = Array.from(hourlyMap.entries()).map(([label, sales]) => ({
+      label,
+      sales,
+    }));
+
+    return summary;
+  }
 
   return getSalesAnalytics(supabase, {
     start: from.toISOString(),
@@ -53,7 +87,11 @@ export async function getPurchaseInsightsSummary(
 ): Promise<PurchaseInsightsSummary> {
   const supabase = await createClient();
   const { from, to } = resolveRange(range);
-  return getPurchaseInsights(supabase, { start: from, end: to });
+  return getPurchaseInsights(supabase, {
+    start: from,
+    end: to,
+    isHourly: range.preset === "today",
+  });
 }
 
 export function getRangeLabel(range: AnalyticsRange): string {

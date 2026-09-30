@@ -53,9 +53,10 @@ export async function exportSalesAnalyticsCsvAction(
     await requireAdminOrManager();
     const supabase = await createClient();
     const { from, to, bucket } = resolveRange(range);
+    const exclusiveEnd = new Date(to.getTime() + 1);
     const summary = await getSalesAnalytics(supabase, {
       start: from.toISOString(),
-      end: to.toISOString(),
+      end: exclusiveEnd.toISOString(),
       bucket,
     });
 
