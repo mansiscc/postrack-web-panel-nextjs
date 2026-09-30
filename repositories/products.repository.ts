@@ -161,6 +161,82 @@ export async function getProductById(
   };
 }
 
+export type DuplicateProductMatch = {
+  id: string;
+  name: string;
+  barcode: string | null;
+  sellingPrice: number | null;
+  mrp: number | null;
+  stockQuantity: number;
+  unit: string | null;
+  categoryName: string | null;
+};
+
+export async function findDuplicateProductsByName(
+  supabase: SupabaseClient<Database>,
+  name: string,
+  excludeId?: string,
+): Promise<DuplicateProductMatch[]> {
+  const trimmed = name.trim();
+  if (trimmed.length < 3) return [];
+
+  const normalized = trimmed.replace(/\s+/g, " ").toLowerCase();
+  const term = sanitizePostgrestSearch(trimmed);
+
+  let query = supabase
+    .from("products")
+    .select(
+      `
+      id,
+      name,
+      barcode,
+      selling_price,
+      mrp,
+      stock_quantity,
+      unit,
+      is_deleted,
+      is_active,
+      product_categories ( name )
+    `,
+    )
+    .eq("is_deleted", false)
+    .eq("is_active", true);
+
+  if (term) {
+    query = query.ilike("name", `%${term}%`);
+  }
+
+  if (excludeId) {
+    query = query.neq("id", excludeId);
+  }
+
+  const { data, error } = await query.limit(20);
+  if (error) throw mapSupabaseError(error);
+
+  const matches = (data ?? [])
+    .filter((row) => {
+      const rowNorm = row.name.trim().replace(/\s+/g, " ").toLowerCase();
+      return rowNorm === normalized;
+    })
+    .map((row) => {
+      const category = row.product_categories as { name: string } | null;
+      return {
+        id: row.id,
+        name: row.name,
+        barcode: row.barcode,
+        sellingPrice: row.selling_price,
+        mrp: row.mrp,
+        stockQuantity: row.stock_quantity ?? 0,
+        unit: row.unit,
+        categoryName: category?.name ?? null,
+      };
+    })
+    .sort((a, b) => b.stockQuantity - a.stockQuantity || a.name.localeCompare(b.name))
+    .slice(0, 5);
+
+  return matches;
+}
+
 export async function getProductByBarcode(
   supabase: SupabaseClient<Database>,
   barcode: string,

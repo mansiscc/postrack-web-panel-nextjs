@@ -8,6 +8,7 @@ import { ModalCardFooter } from "@/components/ui/modal-card";
 type FormModalCardFooterProps = {
   onCancel: () => void;
   isSubmitting: boolean;
+  submitDisabled?: boolean;
   submitLabel?: string;
   submittingLabel?: string;
 };
@@ -15,6 +16,7 @@ type FormModalCardFooterProps = {
 export function FormModalCardFooter({
   onCancel,
   isSubmitting,
+  submitDisabled = false,
   submitLabel = "Save",
   submittingLabel = "Saving…",
 }: FormModalCardFooterProps) {
@@ -23,7 +25,7 @@ export function FormModalCardFooter({
       <Button type="button" variant="outline" onClick={onCancel}>
         Cancel
       </Button>
-      <Button type="submit" disabled={isSubmitting}>
+      <Button type="submit" disabled={isSubmitting || submitDisabled}>
         {isSubmitting ? (
           <>
             <Loader2 className="animate-spin" />

@@ -9,6 +9,7 @@ import {
 import { requireAdmin } from "@/lib/auth/guards";
 import { requireModuleAccess } from "@/lib/auth/session";
 import {
+  checkDuplicateProductName,
   createProductRecord,
   getProductDetailBundle,
   removeProduct,
@@ -16,6 +17,7 @@ import {
   toggleProductActive,
   updateProductRecord,
 } from "@/services/product.service";
+import type { DuplicateProductMatch } from "@/repositories/products.repository";
 import { actionError, actionSuccess, type ActionResult } from "@/utils/action-result";
 import { AppError, getErrorMessage } from "@/utils/errors";
 
@@ -145,4 +147,17 @@ export async function restoreProductAction(id: string): Promise<ActionResult> {
 export async function getProductDetailsAction(id: string) {
   await requireModuleAccess("products");
   return getProductDetailBundle(id);
+}
+
+export async function checkDuplicateProductNameAction(
+  name: string,
+  excludeId?: string,
+): Promise<ActionResult<DuplicateProductMatch[]>> {
+  try {
+    await requireModuleAccess("products");
+    const matches = await checkDuplicateProductName(name, excludeId);
+    return actionSuccess(matches);
+  } catch (error) {
+    return actionError(getErrorMessage(error));
+  }
 }

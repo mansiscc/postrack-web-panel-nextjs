@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { logActivity } from "@/lib/activity-log";
 import {
   createProductWithOpeningStock,
+  findDuplicateProductsByName,
   getProductBatchesWithStock,
   getProductByBarcode,
   getProductById,
@@ -12,6 +13,7 @@ import {
   softDeleteProduct,
   updateProduct,
   type CreateProductRpcInput,
+  type DuplicateProductMatch,
   type ProductListParams,
   type UpdateProductInput,
 } from "@/repositories/products.repository";
@@ -37,6 +39,28 @@ export async function getProductDetailBundle(productId: string) {
     getProductBatchesWithStock(supabase, productId),
   ]);
   return { details, batches };
+}
+
+export async function checkDuplicateProductName(
+  name: string,
+  excludeId?: string,
+): Promise<DuplicateProductMatch[]> {
+  const supabase = await createClient();
+  return findDuplicateProductsByName(supabase, name, excludeId);
+}
+
+async function assertUniqueProductName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  name: string,
+  excludeId?: string,
+) {
+  const matches = await findDuplicateProductsByName(supabase, name, excludeId);
+  if (matches.length > 0) {
+    throw new AppError(
+      `A product named "${matches[0].name}" already exists. Duplicate products with the same name cannot be added.`,
+      "DUPLICATE_PRODUCT_NAME",
+    );
+  }
 }
 
 async function assertUniqueBarcode(
@@ -76,13 +100,23 @@ export async function createProductRecord(
   });
 
   const headerStore = await headers();
+  const duplicateMatches = await findDuplicateProductsByName(
+    supabase,
+    input.name,
+    id,
+  );
+  const description =
+    duplicateMatches.length > 0
+      ? `Possible duplicate product name detected for "${input.name}". Matches: ${duplicateMatches.length}.`
+      : `Created product "${input.name}"`;
+
   await logActivity(supabase, {
     userId: user.id,
     userName: user.fullName,
     companyId: user.companyId,
     actionType: "Create",
     moduleName: "Products",
-    description: `Created product "${input.name}"`,
+    description,
     status: "Success",
     recordId: id,
     ipAddress: headerStore.get("x-forwarded-for")?.split(",")[0]?.trim(),
@@ -111,13 +145,23 @@ export async function updateProductRecord(
   });
 
   const headerStore = await headers();
+  const duplicateMatches = await findDuplicateProductsByName(
+    supabase,
+    input.name,
+    productId,
+  );
+  const description =
+    duplicateMatches.length > 0
+      ? `Possible duplicate product name detected for "${input.name}". Matches: ${duplicateMatches.length}.`
+      : `Updated product "${input.name}"`;
+
   await logActivity(supabase, {
     userId: user.id,
     userName: user.fullName,
     companyId: user.companyId,
     actionType: "Update",
     moduleName: "Products",
-    description: `Updated product "${input.name}"`,
+    description,
     status: "Success",
     recordId: productId,
     ipAddress: headerStore.get("x-forwarded-for")?.split(",")[0]?.trim(),
